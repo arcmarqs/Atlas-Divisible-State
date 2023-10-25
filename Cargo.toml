@@ -1,0 +1,20 @@
+[package]
+name = "atlas-divisible-state"
+version = "0.1.0"
+edition = "2021"
+description = "Persistent KV Store state manager for Atlas"
+authors = ["Amadeu Marques"]
+license = "MIT"
+readme = "README.md"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+atlas-core={path = "../Atlas/Atlas-Core" }
+atlas-common = {path = "../Atlas/Atlas-Common" }
+atlas-communication = {path = "../Atlas/Atlas-Communication" }
+atlas-execution = {path = "../Atlas/Atlas-Execution" }
+atlas-metrics = {path = "../Atlas/Atlas-Metrics" }
+serde = { version = "*", optional = false }
+blake3 = { version = "*", optional = false }
+bincode = { version = "*", optional = false }
+sled = { version = "0.34.7"}
