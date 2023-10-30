@@ -9,11 +9,12 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-atlas-core={path = "../Atlas/Atlas-Core" }
-atlas-common = {path = "../Atlas/Atlas-Common" }
-atlas-communication = {path = "../Atlas/Atlas-Communication" }
-atlas-execution = {path = "../Atlas/Atlas-Execution" }
-atlas-metrics = {path = "../Atlas/Atlas-Metrics" }
+atlas-core={path = "../Atlas-Core" }
+atlas-common = {path = "../Atlas-Common" }
+atlas-communication = {path = "../Atlas-Communication" }
+atlas-smr-execution = {path = "../Atlas-SMR-Execution" }
+atlas-smr-application = {path = "../Atlas-SMR-Application" }
+atlas-metrics = {path = "../Atlas-Metrics" }
 serde = { version = "*", optional = false }
 blake3 = { version = "*", optional = false }
 bincode = { version = "*", optional = false }

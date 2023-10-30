@@ -54,48 +54,16 @@ impl StateTree {
     }
 
     pub fn calculate_tree(&mut self) {
-        let mut peaks: BTreeMap<u32,Digest> = BTreeMap::new();       
+
+        let mut hasher = Context::new();
+
         for leaf in self.leaves.values() {
-            let mut node_digest = leaf.get_digest_cloned();
-            let mut level = 0;
-
-            while let Some(same_level) = peaks.insert(level, node_digest) {
-                let mut hasher = Context::new();
-                hasher.update(same_level.as_ref());
-                hasher.update(node_digest.as_ref());
-                node_digest = hasher.finish();            
-                peaks.remove(&level);
-
-                level +=1;
-            }   
+            hasher.update(leaf.get_digest())
         }
 
       //  println!("peaks: {:?}", peaks);
         self.updated = false;
-        self.root = self.bag_peaks(peaks);
-    }
-
-    // iterates over peaks and consolidates them into a single node
-    fn bag_peaks(&self, mut peaks: BTreeMap<u32, Digest>) -> Option<Digest> {
-        let mut bagged_peaks: Vec<Digest> = Vec::new();
-
-        // Iterating in reverse makes the tree more unbalanced, but preserves the order of insertion,
-        // this is important when serializing or sending the tree since we send only the root digest and the leaves.
-        while !peaks.is_empty() {
-            let peak = peaks.pop_last().unwrap().1;
-            if let Some(top) = bagged_peaks.pop() {
-                let mut hasher = Context::new();
-                hasher.update(top.as_ref());
-                hasher.update(peak.as_ref());
-                let new_top = hasher.finish();
-                bagged_peaks.push(new_top);
-            } else {
-                bagged_peaks.push(peak);
-            }
-        }
-
-        assert!(bagged_peaks.len() == 1);
-        bagged_peaks.pop()
+        self.root = Some(hasher.finish());
     }
 
     pub fn next_seqno(&mut self) -> SeqNo {

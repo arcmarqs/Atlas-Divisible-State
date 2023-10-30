@@ -9,10 +9,9 @@ use atlas_common::error::ResultWrappedExt;
 use atlas_common::ordering::{self, SeqNo};
 use atlas_common::threadpool::ThreadPool;
 use atlas_common::{crypto::hash::Digest, ordering::Orderable};
-use atlas_execution::state::divisible_state::{
-    DivisibleState, DivisibleStateDescriptor, PartDescription, PartId, StatePart,
-};
+
 use atlas_metrics::metrics::{metric_duration, metric_store_count, metric_increment};
+use atlas_smr_application::state::divisible_state::{StatePart, DivisibleStateDescriptor, PartId};
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
 use sled::IVec;
