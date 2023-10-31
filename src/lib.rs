@@ -216,7 +216,7 @@ impl DivisibleState for StateOrchestrator {
 
     fn get_parts(
         &mut self,
-    ) -> Result<(Vec<SerializedState>, SerializedTree), atlas_common::error::Error> {
+    ) -> Result<Vec<SerializedState>, atlas_common::error::Error> {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
        metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
@@ -288,7 +288,7 @@ impl DivisibleState for StateOrchestrator {
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
 
-        Ok((parts, self.get_descriptor()))
+        Ok(parts)
     }
 
     fn get_seqno(&self) -> atlas_common::error::Result<SeqNo> {
