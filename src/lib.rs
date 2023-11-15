@@ -11,7 +11,7 @@ use atlas_common::threadpool::ThreadPool;
 use atlas_common::{crypto::hash::Digest, ordering::Orderable};
 
 use atlas_metrics::metrics::{metric_duration, metric_store_count, metric_increment};
-use atlas_smr_application::state::divisible_state::{StatePart, DivisibleStateDescriptor, PartId};
+use atlas_smr_application::state::divisible_state::{StatePart, DivisibleStateDescriptor, PartId, DivisibleState};
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
 use sled::IVec;
@@ -24,7 +24,7 @@ pub mod state_tree;
 
 pub mod metrics;
 
-const CHECKPOINT_THREADS: usize = 8;
+const CHECKPOINT_THREADS: usize = 4;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -102,7 +102,7 @@ impl StatePart<StateOrchestrator> for SerializedState {
     }
 
     fn id(&self) -> &[u8] {
-        self.leaf.id()
+        self.leaf.get_id()
     }
 
     fn length(&self) -> usize {
@@ -155,7 +155,7 @@ impl Orderable for SerializedTree {
 }
 
 impl DivisibleStateDescriptor<StateOrchestrator> for SerializedTree {
-    fn parts(&self) -> Box<[Arc<LeafNode>]>{
+    fn parts(&self) -> Vec<Arc<LeafNode>>{
         self.leaves.iter().cloned().collect()
     }
 
@@ -172,9 +172,7 @@ impl PartId for LeafNode {
     fn seq_no(&self) -> &SeqNo {
         &self.seqno
     }
-}
 
-impl PartDescription for LeafNode {
     fn id(&self) -> &[u8] {
         self.get_id()
     }
@@ -215,7 +213,7 @@ impl DivisibleState for StateOrchestrator {
     }
 
     fn get_parts(
-        &mut self,
+        &mut self
     ) -> Result<Vec<SerializedState>, atlas_common::error::Error> {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
        metric_store_count(TOTAL_STATE_SIZE_ID, 0);
@@ -233,7 +231,7 @@ impl DivisibleState for StateOrchestrator {
             metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
             metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
-            return Ok((vec![], self.get_descriptor()))
+            return Ok(vec![])
         }
 
         let state_parts = Arc::new(Mutex::new(Vec::new()));
