@@ -93,11 +93,7 @@ impl PartialEq for LeafNode {
 
 impl PartialOrd for LeafNode {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.digest.partial_cmp(&other.digest) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.seqno.partial_cmp(&other.seqno)
+        self.digest.partial_cmp(&other.digest) 
     }
 }
 
@@ -112,10 +108,6 @@ impl LeafNode {
 
     pub fn get_digest_cloned(&self) -> Digest {
         self.digest.clone()
-    }
-
-    pub fn update_hash(&mut self, new_digest: Digest) {
-        self.digest = new_digest;
     }
 
     pub fn get_id(&self) -> &[u8] {

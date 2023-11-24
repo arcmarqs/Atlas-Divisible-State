@@ -16,7 +16,7 @@ use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
 use sled::IVec;
 use state_orchestrator::{StateOrchestrator, PREFIX_LEN, Prefix};
-use state_tree::{LeafNode,StateTree};
+use state_tree::LeafNode;
 use crate::metrics::CREATE_CHECKPOINT_TIME_ID;
 
 pub mod state_orchestrator;
@@ -24,7 +24,7 @@ pub mod state_tree;
 
 pub mod metrics;
 
-const CHECKPOINT_THREADS: usize = 4;
+const CHECKPOINT_THREADS: usize = 1;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -228,6 +228,7 @@ impl DivisibleState for StateOrchestrator {
         let checkpoint_start = Instant::now();
 
         if self.updates.is_empty() {
+            println!("no updates, skipping get parts");
             metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
             metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
@@ -295,8 +296,13 @@ impl DivisibleState for StateOrchestrator {
 
     fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {           
         metric_store_count(TOTAL_STATE_SIZE_ID, 0);
+        let cur_seq = self.mk_tree.write().expect("failed to write").next_seqno();
 
         self.mk_tree.write().expect("failed to get write").calculate_tree();
+
+        let desc = self.get_descriptor();
+
+        println!("finished state transfer: desc {:?} {:?}", desc.get_digest(), desc.sequence_number()); 
         
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
