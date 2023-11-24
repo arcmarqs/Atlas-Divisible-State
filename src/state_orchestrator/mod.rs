@@ -147,7 +147,7 @@ impl StateOrchestrator {
     pub fn get_descriptor_inner(&self) -> SerializedTree {
         let lock = self.mk_tree.read().expect("failed to read");
     
-        SerializedTree { digest: lock.root, seqno: lock.get_seqno(), leaves: lock.leaves.values().cloned().collect::<Vec<_>>()  }
+        SerializedTree { digest: lock.root, leaves: lock.leaves.values().cloned().collect::<Vec<_>>(), seqno: lock.seqno  }
     }
 
 }

@@ -28,7 +28,7 @@ pub struct StateTree {
 impl Default for StateTree {
     fn default() -> Self {
         Self {
-          //  control: AtomicBool::new(false),
+            // control: AtomicBool::new(false),
             seqno: SeqNo::ZERO,
             updated: false,
             root: Default::default(),
@@ -40,7 +40,7 @@ impl Default for StateTree {
 impl StateTree {
     pub fn init() -> Self {
         Self {
-         //   control: AtomicBool::new(false),
+            // control: AtomicBool::new(false),
             seqno: SeqNo::ZERO,
             updated: false,
             root: Default::default(),
@@ -49,7 +49,6 @@ impl StateTree {
     }
 
     pub fn insert_leaf(&mut self, pid: Prefix , leaf: Arc<LeafNode>) {
-        self.seqno = self.seqno.max(leaf.seqno);
         self.leaves.insert(pid, leaf);
     }
 
@@ -64,23 +63,16 @@ impl StateTree {
       //  println!("peaks: {:?}", peaks);
         self.updated = false;
         self.root = Some(hasher.finish());
-    }
-
-    pub fn next_seqno(&mut self) -> SeqNo {
-        let ret = self.seqno;
         self.seqno = self.seqno.next();
-
-        ret
     }
-
+ 
     pub fn get_seqno(&self) -> SeqNo {
         self.seqno
-    }
+    } 
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeafNode {
-    pub seqno: SeqNo,
     pub id: Prefix,
     pub digest: Digest,
 }
@@ -98,8 +90,8 @@ impl PartialOrd for LeafNode {
 }
 
 impl LeafNode {
-    pub fn new(seqno: SeqNo, id: Prefix, digest: Digest) -> Self {
-        Self {seqno, id, digest, }
+    pub fn new(id: Prefix, digest: Digest) -> Self {
+        Self { id, digest, }
     }
 
     pub fn get_digest(&self) -> &[u8] {
