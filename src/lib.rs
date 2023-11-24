@@ -1,13 +1,11 @@
-use std::collections::btree_map::Values;
 use std::{mem, thread};
 use std::ops::Deref;
-use std::sync::{Arc,RwLock, Mutex};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use anyhow::Error;
 use atlas_common::crypto::hash::Context;
-use atlas_common::error::ResultWrappedExt;
 use atlas_common::ordering::{self, SeqNo};
-use atlas_common::threadpool::ThreadPool;
 use atlas_common::{crypto::hash::Digest, ordering::Orderable};
 
 use atlas_metrics::metrics::{metric_duration, metric_store_count, metric_increment};
@@ -214,7 +212,7 @@ impl DivisibleState for StateOrchestrator {
 
     fn get_parts(
         &mut self
-    ) -> Result<Vec<SerializedState>, atlas_common::error::Error> {
+    ) -> Result<Vec<SerializedState>, Error> {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
        metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
@@ -277,16 +275,15 @@ impl DivisibleState for StateOrchestrator {
         let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
 
         self.mk_tree.write().expect("failed to write").calculate_tree();
-            
+
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
-
-       // println!("number of parts {:?}", parts.len());
-       // println!("leaves {:?}", self.mk_tree.read().expect("failed to write").leaves.len());
+        
+        println!("leaves {:?}", self.mk_tree.read().expect("failed to write").leaves.len());
+        println!("number of parts {:?}", parts.len());
 
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
-
         Ok(parts)
     }
 
@@ -299,10 +296,6 @@ impl DivisibleState for StateOrchestrator {
         let cur_seq = self.mk_tree.write().expect("failed to write").next_seqno();
 
         self.mk_tree.write().expect("failed to get write").calculate_tree();
-
-        let desc = self.get_descriptor();
-
-        println!("finished state transfer: desc {:?} {:?}", desc.get_digest(), desc.sequence_number()); 
         
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 

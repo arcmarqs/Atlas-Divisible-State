@@ -9,6 +9,8 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.75"
+thiserror = "1.0.50"
 atlas-core={path = "../Atlas-Core" }
 atlas-common = {path = "../Atlas-Common" }
 atlas-communication = {path = "../Atlas-Communication" }
