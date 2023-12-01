@@ -22,7 +22,7 @@ pub mod state_tree;
 
 pub mod metrics;
 
-const CHECKPOINT_THREADS: usize = 1;
+const CHECKPOINT_THREADS: usize = 2;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -189,17 +189,18 @@ impl DivisibleState for StateOrchestrator {
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
-        
-            tree_lock.insert_leaf(part.leaf.id.clone(), part.leaf.clone());
 
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-
                 batch.insert(k,v); 
             }   
+
+            tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
+
+            
         }
 
-        drop(tree_lock);
+       drop(tree_lock);
         self.db.0.apply_batch(batch).expect("failed to apply batch");
         
         //let _ = self.db.flush();
@@ -223,7 +224,6 @@ impl DivisibleState for StateOrchestrator {
         let checkpoint_start = Instant::now();
 
         if self.updates.is_empty() {
-            println!("no updates, skipping get parts");
             metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
             metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
@@ -232,11 +232,11 @@ impl DivisibleState for StateOrchestrator {
 
         let state_parts = Arc::new(Mutex::new(Vec::new()));
 
-        let parts = self.updates.prefixes.drain().collect::<Vec<_>>();
-    
+        let parts = self.updates.extract();
+        println!("updates {:?}", parts.len());
+ 
         let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         let mut handles = vec![];
-
         for chunk in chunks {
             let db_handle = self.db.0.clone();
             let state_parts = state_parts.clone();
@@ -266,11 +266,26 @@ impl DivisibleState for StateOrchestrator {
         for handle in handles {
             handle.join().unwrap();
         }
-       
+     /*    for prefix in parts {
+            println!("{:?}", prefix);
+            let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
+            let kv_pairs  = kv_iter
+            .map(|kv| kv.map(process_part).expect("failed to process part") )
+            .collect::<Box<_>>();
+            if kv_pairs.is_empty() {
+                continue;
+            }
+            let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
+            state_parts.push(serialized_part);
+        }*/
+
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
         let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
+        //println!("descriptor {:?}", self.mk_tree.read().expect("failed to read").leaves.values().map(|v| v.digest).collect::<Vec<_>>());
 
         self.mk_tree.write().expect("failed to write").calculate_tree();
+        //println!("parts {:?}", state_parts);
+
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
@@ -286,8 +301,8 @@ impl DivisibleState for StateOrchestrator {
 
     fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {           
         metric_store_count(TOTAL_STATE_SIZE_ID, 0);
-
         self.mk_tree.write().expect("failed to get write").calculate_tree();
+        println!("post state transfer tree {:?}", self.get_descriptor().digest);
         
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
@@ -295,9 +310,8 @@ impl DivisibleState for StateOrchestrator {
 
         //println!("Verifying integrity");
 
-        //self.db
-         //   .0.verify_integrity()
-          //  .wrapped(atlas_common::error::ErrorKind::Error)
+        self.db.0.verify_integrity().expect("integrity check failed");
+
         Ok(())
     } 
 }

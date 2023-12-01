@@ -1,4 +1,4 @@
-use std::{sync::{Arc, RwLock}};
+use std::{sync::{Arc, RwLock}, collections::BTreeSet};
 
 use crate::{
     state_tree::StateTree,
@@ -7,7 +7,7 @@ use crate::{
 use atlas_common::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
-pub const PREFIX_LEN: usize = 12;
+pub const PREFIX_LEN: usize = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
@@ -72,6 +72,12 @@ impl PrefixSet {
        // self.prefix_len = 0;
     }
 
+    pub fn extract(&mut self) -> Vec<Prefix> {
+        let vec = self.prefixes.iter().cloned().collect::<Vec<_>>();
+        self.prefixes.clear();
+
+        vec
+    }
    // fn merge_prefixes(&mut self) {
   //      self.prefix_len -= 1;
   //      let mut new_set: BTreeSet<Prefix> = BTreeSet::new();
@@ -123,8 +129,12 @@ impl StateOrchestrator {
     }
 
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<IVec> {
-        self.updates.insert(&key);
-        self.db.0.insert(key, value).expect("Error inserting key")
+        if let Ok(ret) =  self.db.0.insert(key, value) {
+            self.updates.insert(&key);
+            ret
+        } else {
+            None
+        }
     }
 
     pub fn remove(&mut self, key: &[u8])-> Option<IVec> {

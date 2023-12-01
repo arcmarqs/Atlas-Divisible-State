@@ -19,7 +19,6 @@ pub struct StateTree {
     pub seqno: SeqNo,
     // Stores the peaks by level, every time a new peak of the same level is inserted, a new internal node with level +1 is created.
     //pub peaks: BTreeMap<u32, NodeRef>,
-    pub updated: bool,
     pub root: Option<Digest>,
     // stores references to all leaves, ordered by the part id
     pub leaves: BTreeMap<Prefix, Arc<LeafNode>>,
@@ -30,7 +29,6 @@ impl Default for StateTree {
         Self {
             // control: AtomicBool::new(false),
             seqno: SeqNo::ZERO,
-            updated: false,
             root: Default::default(),
             leaves: Default::default(),
         }
@@ -42,7 +40,6 @@ impl StateTree {
         Self {
             // control: AtomicBool::new(false),
             seqno: SeqNo::ZERO,
-            updated: false,
             root: Default::default(),
             leaves: BTreeMap::new(),
         }
@@ -61,9 +58,9 @@ impl StateTree {
         }
 
       //  println!("peaks: {:?}", peaks);
-        self.updated = false;
-        self.root = Some(hasher.finish());
         self.seqno = self.seqno.next();
+        self.root = Some(hasher.finish());
+
     }
  
     pub fn get_seqno(&self) -> SeqNo {
