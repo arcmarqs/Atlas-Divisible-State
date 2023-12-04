@@ -6,8 +6,9 @@ use crate::{
 };
 use atlas_common::collections::HashSet;
 use serde::{Deserialize, Serialize};
+use log::{debug, error, info, trace, warn};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
-pub const PREFIX_LEN: usize = 4;
+pub const PREFIX_LEN: usize = 6;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
@@ -124,13 +125,19 @@ impl StateOrchestrator {
        ret
     }
 
+    // loads the state from the specified location
+    pub fn load_state(&mut self, path: &str) {
+    todo!()
+    }
+
     pub fn get_subscriber(&self) -> Subscriber {
         self.db.0.watch_prefix(vec![])
     }
 
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<IVec> {
+        debug!("inserting key {:?} value {:?}", key, &value);
         if let Ok(ret) =  self.db.0.insert(key, value) {
-            self.updates.insert(&key);
+            self.updates.insert(key);
             ret
         } else {
             None
@@ -139,7 +146,8 @@ impl StateOrchestrator {
 
     pub fn remove(&mut self, key: &[u8])-> Option<IVec> {
         if let Some(res) = self.db.0.remove(key).expect("error removing key") {
-            self.updates.insert(&key);
+            debug!("deleting key {:?}", key);
+            self.updates.insert(key);
             Some(res)
         } else {
             None
