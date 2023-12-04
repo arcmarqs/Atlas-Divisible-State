@@ -22,7 +22,7 @@ pub mod state_tree;
 
 pub mod metrics;
 
-const CHECKPOINT_THREADS: usize = 2;
+const CHECKPOINT_THREADS: usize = 4;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
