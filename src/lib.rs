@@ -16,6 +16,7 @@ use sled::IVec;
 use state_orchestrator::{StateOrchestrator, PREFIX_LEN, Prefix};
 use state_tree::LeafNode;
 use crate::metrics::CREATE_CHECKPOINT_TIME_ID;
+use crate::state_orchestrator::get_range;
 
 pub mod state_orchestrator;
 pub mod state_tree;
@@ -185,23 +186,24 @@ impl DivisibleState for StateOrchestrator {
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
         let mut batch = sled::Batch::default();
         let mut tree_lock = self.mk_tree.write().expect("failed to write");
+        let mut db_lock = self.db.0.write().expect("failed to write");
 
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
-
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-                batch.insert(k,v); 
+                 db_lock.insert(k, v) ;
             }   
 
             tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
 
             
         }
-
-       drop(tree_lock);
-        self.db.0.apply_batch(batch).expect("failed to apply batch");
+        
+        drop(db_lock);
+        drop(tree_lock);
+       // self.db.0.apply_batch(batch).expect("failed to apply batch");
         
         //let _ = self.db.flush();
 
@@ -214,7 +216,7 @@ impl DivisibleState for StateOrchestrator {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
        metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
-        let process_part = |(k,v) : (IVec,IVec)| {
+        let process_part = |(k,v) : (&Vec<u8>,&Vec<u8>)| {
 
             metric_increment(CHECKPOINT_SIZE_ID, Some((k.len() + v.len()) as u64));
 
@@ -225,7 +227,7 @@ impl DivisibleState for StateOrchestrator {
 
         if self.updates.is_empty() {
             metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
-            metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+           // metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
             return Ok(vec![])
         }
@@ -243,12 +245,13 @@ impl DivisibleState for StateOrchestrator {
             let tree = self.mk_tree.clone();
             let handle = thread::spawn(move || {
                 let mut local_state_parts = Vec::new();
-
+                    let db_lock = db_handle.read().expect("failed to read");
                     for prefix in chunk {
-                        let kv_iter = db_handle.scan_prefix(prefix.as_ref());
-                        let kv_pairs  = kv_iter
-                        .map(|kv| kv.map(process_part).expect("failed to process part") )
-                        .collect::<Box<_>>();
+                        let r = get_range(&prefix);
+                        println!("iter size {:?} {:?}",r.0, r.1);
+                        let kv_iter = db_lock.range(r.0 .. r.1).collect::<Vec<_>>();
+                        let kv_pairs  = kv_iter.into_iter()
+                        .map(process_part).collect::<Box<_>>();
                         if kv_pairs.is_empty() {
                             continue;
                         }
@@ -288,7 +291,7 @@ impl DivisibleState for StateOrchestrator {
 
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
-        metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+       // metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
         
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
@@ -304,13 +307,13 @@ impl DivisibleState for StateOrchestrator {
         self.mk_tree.write().expect("failed to get write").calculate_tree();
         println!("post state transfer tree {:?}", self.get_descriptor().digest);
         
-        metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+        //metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
         //println!("finished st {:?}", self.get_descriptor());
 
         //println!("Verifying integrity");
 
-        self.db.0.verify_integrity().expect("integrity check failed");
+       //self.db.0.verify_integrity().expect("integrity check failed");
 
         Ok(())
     } 

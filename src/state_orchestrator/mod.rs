@@ -1,4 +1,4 @@
-use std::{sync::{Arc, RwLock}, collections::BTreeSet};
+use std::{sync::{Arc, RwLock}, collections:: BTreeMap, ops::Range};
 
 use crate::{
     state_tree::StateTree,
@@ -20,7 +20,6 @@ impl Prefix {
     pub fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
     }
-
    // pub fn truncate(&self, len: usize) -> Prefix {
   //      let new_prefix = self.0[..len];
 //
@@ -41,7 +40,6 @@ impl PrefixSet {
     }
 
     pub fn insert(&mut self, key: &[u8]) {
-
         // if a prefix corresponds to a full key we can simply use the full key
         
         let prefix = Prefix::new(&key[..PREFIX_LEN]);
@@ -89,11 +87,11 @@ impl PrefixSet {
 }
 
 #[derive(Debug,Clone)]
-pub struct DbWrapper(pub Arc<Db>);
+pub struct DbWrapper(pub Arc<RwLock<BTreeMap<Vec<u8>,Vec<u8>>>>);
 
 impl Default for DbWrapper {
     fn default() -> Self {
-        Self (Arc::new(Config::new().temporary(true).open().expect("failed to open")) )
+        Self (Arc::new(RwLock::new(BTreeMap::default())) )
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,41 +102,39 @@ pub struct StateOrchestrator {
     pub updates: PrefixSet,
     #[serde(skip_serializing, skip_deserializing)]
     pub mk_tree: Arc<RwLock<StateTree>>,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub key_len: usize,
 }
 
 impl StateOrchestrator {
-    pub fn new(path: &str) -> Self {
-        let conf = Config::new()
+    pub fn new(path: &str, keylen: usize) -> Self {
+     /*   let conf = Config::new()
         .mode(Mode::HighThroughput)
         .temporary(true)
-        .path(path);
+        .path(path);*/ 
 
-        let db = conf.open().unwrap();
-        
+        let db =  RwLock::new(BTreeMap::<Vec<u8>,Vec<u8>>::default());
         let ret = Self {
             db: DbWrapper(Arc::new(db)),
             updates: PrefixSet::default(),
             mk_tree: Arc::new(RwLock::new(StateTree::default())),
+            key_len: keylen,
         };
 
        ret
     }
-
-    pub fn get_subscriber(&self) -> Subscriber {
+  /*   pub fn get_subscriber(&self) -> Subscriber {
         self.db.0.watch_prefix(vec![])
     }
-
-    pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<IVec> {
-        if let Ok(ret) =  self.db.0.insert(key, value) {
-            self.updates.insert(&key);
-            ret
-        } else {
-            None
-        }
+*/
+    pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<Vec<u8>> {
+        let ret =  self.db.0.write().expect(" failed to write").insert(key.to_vec(), value);
+        self.updates.insert(&key);
+        ret  
     }
 
-    pub fn remove(&mut self, key: &[u8])-> Option<IVec> {
-        if let Some(res) = self.db.0.remove(key).expect("error removing key") {
+    pub fn remove(&mut self, key: &[u8])-> Option<Vec<u8>> {
+        if let Some(res) =  self.db.0.write().expect(" failed to write").remove(key) {
             self.updates.insert(&key);
             Some(res)
         } else {
@@ -146,13 +142,10 @@ impl StateOrchestrator {
         }
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<IVec> {
-        self.db.0.get(key).expect("error getting key")
+    pub fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.db.0.read().expect(" failed to read").get(key).cloned()
     }
 
-    pub fn generate_id(&self) -> u64 {
-        self.db.0.generate_id().expect("Failed to Generate id")
-    }
 
     pub fn get_descriptor_inner(&self) -> SerializedTree {
         let lock = self.mk_tree.read().expect("failed to read");
@@ -160,4 +153,15 @@ impl StateOrchestrator {
         SerializedTree { digest: lock.root, leaves: lock.leaves.values().cloned().collect::<Vec<_>>(), seqno: lock.seqno  }
     }
 
+}
+
+pub fn get_range(prefix: &Prefix) -> (Vec<u8>, Vec<u8>) {
+    let mut st = vec![0,0,0,0];
+    println!("fill {:?}", st);
+    let start = [prefix.0.as_slice(),st.as_slice()].concat();
+    st = vec![255,255,255,255];
+    let end = [prefix.0.as_slice(),st.as_slice()].concat();
+    println!("end {:?}", st);
+
+    (start,end)
 }
