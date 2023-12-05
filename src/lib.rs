@@ -185,7 +185,7 @@ impl DivisibleState for StateOrchestrator {
 
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
         let mut batch = sled::Batch::default();
-        let mut tree_lock = self.mk_tree.write().expect("failed to write");
+       // let mut tree_lock = self.mk_tree.write().expect("failed to write");
 
         for part in parts.iter() {
             let pairs = part.to_pairs();
@@ -193,15 +193,15 @@ impl DivisibleState for StateOrchestrator {
 
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
+                self.updates.insert(&k);
                 batch.insert(k,v); 
             }   
 
-            tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
+            //tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
 
-            
         }
 
-       drop(tree_lock);
+       //drop(tree_lock);
         self.db.0.apply_batch(batch).expect("failed to apply batch");
         
         //let _ = self.db.flush();
@@ -300,14 +300,39 @@ impl DivisibleState for StateOrchestrator {
         Ok(self.mk_tree.read().expect("failed to read").get_seqno())
     } */
 
-    fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {           
+    fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {         
+
+        let process_part = |(k,v) : (IVec,IVec)| {
+
+            metric_increment(CHECKPOINT_SIZE_ID, Some((k.len() + v.len()) as u64));
+
+            (k[PREFIX_LEN..].into(), v.deref().into())
+        };
+
         metric_store_count(TOTAL_STATE_SIZE_ID, 0);
-        self.mk_tree.write().expect("failed to get write").calculate_tree();
-        println!("post state transfer tree {:?}", self.get_descriptor().digest);
-        self.updates.clear();
+
+        println!("prefix count {:?}", self.updates.seqno);
+        let parts = self.updates.extract();
+        println!("updates {:?}", parts.len());
+
+      let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
+         for prefix in parts {
+            let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
+            let kv_pairs  = kv_iter
+            .map(|kv| kv.map(process_part).expect("failed to process part") )
+            .collect::<Box<_>>();
+            if kv_pairs.is_empty() {
+                continue;
+            }
+            let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
+            tree_lock.insert_leaf(prefix,serialized_part.leaf.clone());
+        }
+
+
+        tree_lock.calculate_tree();
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
-        //println!("finished st {:?}", self.get_descriptor());
+        println!("finished st {:?}", self.get_descriptor().get_digest());
 
         //println!("Verifying integrity");
 
