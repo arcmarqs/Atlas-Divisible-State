@@ -266,8 +266,8 @@ impl DivisibleState for StateOrchestrator {
         for handle in handles {
             handle.join().unwrap();
         } */
+        let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
          for prefix in parts {
-            println!("{:?}", prefix);
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
             let kv_pairs  = kv_iter
             .map(|kv| kv.map(process_part).expect("failed to process part") )
@@ -276,16 +276,17 @@ impl DivisibleState for StateOrchestrator {
                 continue;
             }
             let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
+            tree_lock.insert_leaf(prefix,serialized_part.leaf.clone());
             state_parts.push(serialized_part);
         }
 
 
-        self.mk_tree.write().expect("failed to write").calculate_tree();
+        tree_lock.calculate_tree();
         //println!("parts {:?}", state_parts);
-
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+        drop(tree_lock);
         info!("descriptor {:?}", self.get_descriptor().get_digest());
 
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
