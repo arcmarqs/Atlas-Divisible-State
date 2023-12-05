@@ -10,6 +10,7 @@ use atlas_common::{crypto::hash::Digest, ordering::Orderable};
 
 use atlas_metrics::metrics::{metric_duration, metric_store_count, metric_increment};
 use atlas_smr_application::state::divisible_state::{StatePart, DivisibleStateDescriptor, PartId, DivisibleState};
+use log::info;
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
 use sled::IVec;
@@ -281,7 +282,6 @@ impl DivisibleState for StateOrchestrator {
 
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
         let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
-        //println!("descriptor {:?}", self.mk_tree.read().expect("failed to read").leaves.values().map(|v| v.digest).collect::<Vec<_>>());
 
         self.mk_tree.write().expect("failed to write").calculate_tree();
         //println!("parts {:?}", state_parts);
@@ -289,7 +289,8 @@ impl DivisibleState for StateOrchestrator {
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
-        
+        info!("descriptor {:?}", self.get_descriptor().get_digest());
+
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
         Ok(parts)
