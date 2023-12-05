@@ -145,7 +145,7 @@ impl StateOrchestrator {
     }
 
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<IVec> {
-        if let Ok(ret) =  self.db.0.insert(key, value.clone()) {
+        if let Ok(ret) =  self.db.0.insert(key, value) {
             self.updates.insert(key);
             ret
         } else {
