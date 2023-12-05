@@ -147,7 +147,6 @@ impl StateOrchestrator {
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<IVec> {
         if let Ok(ret) =  self.db.0.insert(key, value.clone()) {
             self.updates.insert(key);
-            debug!("seqno {:?} inserting key {:?} value {:?}", self.updates.seqno, key, value);
             ret
         } else {
             None
@@ -157,7 +156,6 @@ impl StateOrchestrator {
     pub fn remove(&mut self, key: &[u8])-> Option<IVec> {
         if let Ok(res) = self.db.0.remove(key){
             self.updates.insert(key);
-            debug!("seqno {:?} deleting key {:?}",self.updates.seqno, key);
             res
         } else {
             None
