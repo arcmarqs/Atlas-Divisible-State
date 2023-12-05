@@ -231,7 +231,7 @@ impl DivisibleState for StateOrchestrator {
             return Ok(vec![])
         }
 
-        let state_parts = Vec::new();
+        let mut state_parts = Vec::new();
         println!("prefix count {:?}", self.updates.seqno);
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
