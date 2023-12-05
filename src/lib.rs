@@ -231,12 +231,12 @@ impl DivisibleState for StateOrchestrator {
             return Ok(vec![])
         }
 
-        let state_parts = Arc::new(Mutex::new(Vec::new()));
+        let state_parts = Vec::new();
         println!("prefix count {:?}", self.updates.seqno);
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
  
-        let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+    /*     let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         let mut handles = vec![];
         for chunk in chunks {
             let db_handle = self.db.0.clone();
@@ -244,7 +244,6 @@ impl DivisibleState for StateOrchestrator {
             let tree = self.mk_tree.clone();
             let handle = thread::spawn(move || {
                 let mut local_state_parts = Vec::new();
-
                     for prefix in chunk {
                         let kv_iter = db_handle.scan_prefix(prefix.as_ref());
                         let kv_pairs  = kv_iter
@@ -266,8 +265,8 @@ impl DivisibleState for StateOrchestrator {
 
         for handle in handles {
             handle.join().unwrap();
-        }
-     /*    for prefix in parts {
+        } */
+         for prefix in parts {
             println!("{:?}", prefix);
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
             let kv_pairs  = kv_iter
@@ -278,10 +277,8 @@ impl DivisibleState for StateOrchestrator {
             }
             let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
             state_parts.push(serialized_part);
-        }*/
+        }
 
-        let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
-        let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
 
         self.mk_tree.write().expect("failed to write").calculate_tree();
         //println!("parts {:?}", state_parts);
@@ -293,7 +290,7 @@ impl DivisibleState for StateOrchestrator {
 
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
-        Ok(parts)
+        Ok(state_parts)
     }
 
  /*    fn get_seqno(&self) -> atlas_common::error::Result<SeqNo> {
