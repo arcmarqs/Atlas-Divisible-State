@@ -85,7 +85,6 @@ impl PrefixSet {
     pub fn extract(&mut self) -> Vec<Prefix> {
         let vec = self.prefixes.iter().cloned().collect::<Vec<_>>();
         self.prefixes.clear();
-        self.seqno = SeqNo::ZERO;
         vec
     }
    // fn merge_prefixes(&mut self) {
