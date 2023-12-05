@@ -291,7 +291,6 @@ impl DivisibleState for StateOrchestrator {
        //println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
 
-      debug!("parts: {:?}", state_parts);
         Ok(state_parts)
     }
 

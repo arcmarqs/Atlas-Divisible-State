@@ -125,6 +125,8 @@ impl StateOrchestrator {
         .path(path);
 
         let db = conf.open().unwrap();
+
+        let _ = db.drop_tree("state");
         
         let ret = Self {
             db: DbWrapper(Arc::new(db)),
