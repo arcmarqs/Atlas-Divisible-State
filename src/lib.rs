@@ -231,7 +231,7 @@ impl DivisibleState for StateOrchestrator {
         }
 
         let state_parts = Arc::new(Mutex::new(Vec::new()));
-
+        println!("prefix count {:?}", self.updates.seqno);
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
  
@@ -303,7 +303,7 @@ impl DivisibleState for StateOrchestrator {
         metric_store_count(TOTAL_STATE_SIZE_ID, 0);
         self.mk_tree.write().expect("failed to get write").calculate_tree();
         println!("post state transfer tree {:?}", self.get_descriptor().digest);
-        
+        self.updates.clear();
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
         //println!("finished st {:?}", self.get_descriptor());

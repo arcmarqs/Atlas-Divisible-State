@@ -1,10 +1,10 @@
-use std::{sync::{Arc, RwLock}, collections::BTreeSet};
+use std::{sync::{Arc, RwLock}, collections::BTreeSet, default};
 
 use crate::{
     state_tree::StateTree,
     SerializedTree,
 };
-use atlas_common::collections::HashSet;
+use atlas_common::{collections::HashSet, ordering::SeqNo};
 use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
@@ -29,15 +29,23 @@ impl Prefix {
  //   }
 }
 // A bitmap that registers changed prefixes over a set of keys
-#[derive(Debug,Default,Clone)]
+#[derive(Debug, Clone)]
 pub struct PrefixSet {
-    pub prefixes: HashSet<Prefix>,
+    pub prefixes: BTreeSet<Prefix>,
+    pub seqno: SeqNo,
+}
+
+impl Default for PrefixSet {
+    fn default() -> Self {
+        Self { prefixes: Default::default(), seqno: SeqNo::ZERO }
+    }
 }
 
 impl PrefixSet {
     pub fn new() -> PrefixSet {
         Self { 
-            prefixes: HashSet::default(), 
+            prefixes: BTreeSet::default(), 
+            seqno: SeqNo::ZERO,
         }
     }
 
@@ -52,6 +60,7 @@ impl PrefixSet {
       //      self.prefixes.insert(prefix);
       //  } else {
             self.prefixes.insert(prefix);
+            self.seqno = self.seqno.next();
        // }
 
        // if self.prefixes.len() >= 8000 {
@@ -76,7 +85,7 @@ impl PrefixSet {
     pub fn extract(&mut self) -> Vec<Prefix> {
         let vec = self.prefixes.iter().cloned().collect::<Vec<_>>();
         self.prefixes.clear();
-
+        self.seqno = SeqNo::ZERO;
         vec
     }
    // fn merge_prefixes(&mut self) {
@@ -111,6 +120,7 @@ impl StateOrchestrator {
     pub fn new(path: &str) -> Self {
         let conf = Config::new()
         .mode(Mode::HighThroughput)
+        .cache_capacity(3 * 1024 * 1024 * 1024)
         .temporary(true)
         .path(path);
 
@@ -135,9 +145,9 @@ impl StateOrchestrator {
     }
 
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<IVec> {
-        debug!("inserting key {:?} value {:?}", key, &value);
-        if let Ok(ret) =  self.db.0.insert(key, value) {
+        if let Ok(ret) =  self.db.0.insert(key, value.clone()) {
             self.updates.insert(key);
+            debug!("seqno {:?} inserting key {:?} value {:?}", self.updates.seqno, key, value);
             ret
         } else {
             None
@@ -145,10 +155,10 @@ impl StateOrchestrator {
     }
 
     pub fn remove(&mut self, key: &[u8])-> Option<IVec> {
-        if let Some(res) = self.db.0.remove(key).expect("error removing key") {
-            debug!("deleting key {:?}", key);
+        if let Ok(res) = self.db.0.remove(key){
             self.updates.insert(key);
-            Some(res)
+            debug!("seqno {:?} deleting key {:?}",self.updates.seqno, key);
+            res
         } else {
             None
         }
