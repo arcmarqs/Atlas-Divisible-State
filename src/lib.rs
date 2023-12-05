@@ -190,10 +190,10 @@ impl DivisibleState for StateOrchestrator {
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
+            self.updates.prefixes.insert(Prefix::new(prefix));
 
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-                self.updates.insert(&k);
                 batch.insert(k,v); 
             }   
 
@@ -330,9 +330,11 @@ impl DivisibleState for StateOrchestrator {
 
 
         tree_lock.calculate_tree();
+        println!("finished st {:?}", self.get_descriptor().get_digest());
+
+        drop(tree_lock);
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
-        println!("finished st {:?}", self.get_descriptor().get_digest());
 
         //println!("Verifying integrity");
 
