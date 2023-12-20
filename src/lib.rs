@@ -4,12 +4,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use anyhow::Error;
-use atlas_common::crypto::hash::Context;
+use atlas_common::crypto::hash::{Context, self};
 use atlas_common::ordering::{self, SeqNo};
 use atlas_common::{crypto::hash::Digest, ordering::Orderable};
 
 use atlas_metrics::metrics::{metric_duration, metric_store_count, metric_increment};
 use atlas_smr_application::state::divisible_state::{StatePart, DivisibleStateDescriptor, PartId, DivisibleState};
+use blake3::Hasher;
+use log::kv::value;
 use log::{info, debug};
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
@@ -186,10 +188,12 @@ impl DivisibleState for StateOrchestrator {
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
         //let mut batch = sled::Batch::default();
         //let mut tree_lock = self.mk_tree.write().expect("failed to write");
-
+        
+       let mut hasher = Context::new();
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
+            hasher.update(part.hash().as_ref());
 
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
@@ -199,6 +203,8 @@ impl DivisibleState for StateOrchestrator {
             //tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
 
         }
+
+        println!("DIGEST {:?}", hasher.finish());
 
         //drop(tree_lock);
         //self.db.0.apply_batch(batch).expect("failed to apply batch");
@@ -266,6 +272,8 @@ impl DivisibleState for StateOrchestrator {
             handle.join().unwrap();
         } */
         let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
+        let mut hasher = Context::new();
+
          for prefix in parts {
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
             let kv_pairs  = kv_iter
@@ -279,9 +287,14 @@ impl DivisibleState for StateOrchestrator {
             state_parts.push(serialized_part);
         }
 
+        state_parts.sort_by(|a,b| a.id().cmp(b.id()));
+
+        for part in state_parts.clone() {
+            hasher.update(part.hash().as_ref());
+        }
 
         tree_lock.calculate_tree();
-        //println!("parts {:?}", state_parts);
+        println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
@@ -309,8 +322,10 @@ impl DivisibleState for StateOrchestrator {
 
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
+        let mut hasher = Context::new();
 
         let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
+
          for prefix in parts {
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
             let kv_pairs  = kv_iter
@@ -320,6 +335,8 @@ impl DivisibleState for StateOrchestrator {
                 continue;
             }
             let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
+
+            hasher.update(&serialized_part.bytes);
             tree_lock.insert_leaf(prefix,serialized_part.leaf.clone());
         }
 
@@ -328,6 +345,7 @@ impl DivisibleState for StateOrchestrator {
 
         drop(tree_lock);
         println!("post ST {:?}", self.get_descriptor().get_digest());
+        println!(" RAW DESCRIPTOR {:?}", hasher.finish());
 
 
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
