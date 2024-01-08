@@ -8,7 +8,7 @@ use atlas_common::{collections::HashSet, ordering::SeqNo};
 use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
-pub const PREFIX_LEN: usize = 8;
+pub const PREFIX_LEN: usize = 6;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
@@ -139,7 +139,7 @@ impl StateOrchestrator {
 
     // loads the state from the specified location
     pub fn load_state(&mut self, path: &str) {
-    todo!()
+       todo!()
     }
 
     pub fn get_subscriber(&self) -> Subscriber {

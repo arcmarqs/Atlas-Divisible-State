@@ -186,28 +186,28 @@ impl DivisibleState for StateOrchestrator {
     }
 
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
-        //let mut batch = sled::Batch::default();
-        //let mut tree_lock = self.mk_tree.write().expect("failed to write");
+        let mut batch = sled::Batch::default();
+        let mut tree_lock = self.mk_tree.write().expect("failed to write");
         
-       let mut hasher = Context::new();
+      // let mut hasher = Context::new();
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
-            hasher.update(part.hash().as_ref());
+         //   hasher.update(part.hash().as_ref());
 
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-                self.insert(k.as_slice(),v); 
+                batch.insert(k.as_slice(),v); 
             }   
 
-            //tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
+            tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
 
         }
 
-        println!("DIGEST {:?}", hasher.finish());
+       // println!("DIGEST {:?}", hasher.finish());
 
-        //drop(tree_lock);
-        //self.db.0.apply_batch(batch).expect("failed to apply batch");
+        drop(tree_lock);
+        self.db.0.apply_batch(batch).expect("failed to apply batch");
         
         //let _ = self.db.flush();
 
@@ -237,7 +237,7 @@ impl DivisibleState for StateOrchestrator {
         }
 
         let mut state_parts = Vec::new();
-        println!("prefix count {:?}", self.updates.seqno);
+       // println!("prefix count {:?}", self.updates.seqno);
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
  
@@ -272,7 +272,6 @@ impl DivisibleState for StateOrchestrator {
             handle.join().unwrap();
         } */
         let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
-        let mut hasher = Context::new();
 
          for prefix in parts {
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
@@ -289,19 +288,15 @@ impl DivisibleState for StateOrchestrator {
 
         state_parts.sort_by(|a,b| a.id().cmp(b.id()));
 
-        for part in state_parts.clone() {
-            hasher.update(part.hash().as_ref());
-        }
-
         tree_lock.calculate_tree();
-        println!("raw digest {:?}",hasher.finish());
+        //println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
         drop(tree_lock);
         info!("descriptor {:?}", self.get_descriptor().get_digest());
 
-       //println!("state size {:?}", self.db.0.expect("failed to read size"));
+       // println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
 
         Ok(state_parts)
@@ -313,39 +308,9 @@ impl DivisibleState for StateOrchestrator {
 
     fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {         
 
-        let process_part = |(k,v) : (IVec,IVec)| {
+        self.mk_tree.write().expect("failed to lock tree").calculate_tree();
 
-            metric_increment(CHECKPOINT_SIZE_ID, Some((k.len() + v.len()) as u64));
-
-            (k[PREFIX_LEN..].into(), v.deref().into())
-        };
-
-        let parts = self.updates.extract();
-        println!("updates {:?}", parts.len());
-        let mut hasher = Context::new();
-
-        let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
-
-         for prefix in parts {
-            let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
-            let kv_pairs  = kv_iter
-            .map(|kv| kv.map(process_part).expect("failed to process part") )
-            .collect::<Box<_>>();
-            if kv_pairs.is_empty() {
-                continue;
-            }
-            let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
-
-            hasher.update(&serialized_part.bytes);
-            tree_lock.insert_leaf(prefix,serialized_part.leaf.clone());
-        }
-
-
-        tree_lock.calculate_tree();
-
-        drop(tree_lock);
         println!("post ST {:?}", self.get_descriptor().get_digest());
-        println!(" RAW DESCRIPTOR {:?}", hasher.finish());
 
 
         metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
