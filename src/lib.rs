@@ -312,10 +312,6 @@ impl DivisibleState for StateOrchestrator {
 
         println!("post ST {:?}", self.get_descriptor().get_digest());
 
-
-        metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
-
-
         //println!("Verifying integrity");
 
         self.db.0.verify_integrity().expect("integrity check failed");
