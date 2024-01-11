@@ -25,7 +25,7 @@ pub mod state_tree;
 
 pub mod metrics;
 
-const CHECKPOINT_THREADS: usize = 4;
+const CHECKPOINT_THREADS: usize = 1;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -275,7 +275,7 @@ impl DivisibleState for StateOrchestrator {
         let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
         let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
-        
+
         /*
          for prefix in parts {
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
