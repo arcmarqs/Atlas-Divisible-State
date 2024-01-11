@@ -186,7 +186,7 @@ impl DivisibleState for StateOrchestrator {
     }
 
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
-        let mut batch = sled::Batch::default();
+        //let mut batch = sled::Batch::default();
         let mut tree_lock = self.mk_tree.write().expect("failed to write");
         
       // let mut hasher = Context::new();
@@ -197,7 +197,7 @@ impl DivisibleState for StateOrchestrator {
 
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-                batch.insert(k.as_slice(),v); 
+                let _ = self.db.0.insert(k.as_slice(),v); 
             }   
 
             tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
@@ -207,7 +207,7 @@ impl DivisibleState for StateOrchestrator {
        // println!("DIGEST {:?}", hasher.finish());
 
         drop(tree_lock);
-        self.db.0.apply_batch(batch).expect("failed to apply batch");
+        //self.db.0.apply_batch(batch).expect("failed to apply batch");
         
         //let _ = self.db.flush();
 
