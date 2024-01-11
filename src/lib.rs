@@ -236,7 +236,7 @@ impl DivisibleState for StateOrchestrator {
             return Ok(vec![])
         }
 
-        let mut state_parts = Vec::new();
+        let mut state_parts = Arc::new(Mutex::new(Vec::new()));
        // println!("prefix count {:?}", self.updates.seqno);
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
@@ -272,8 +272,11 @@ impl DivisibleState for StateOrchestrator {
             handle.join().unwrap();
         }
 
-       /* let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
-
+        let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
+        let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
+        let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
+        
+        /*
          for prefix in parts {
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
             let kv_pairs  = kv_iter
@@ -299,7 +302,7 @@ impl DivisibleState for StateOrchestrator {
        // println!("state size {:?}", self.db.0.expect("failed to read size"));
       //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
 
-        Ok(state_parts)
+        Ok(parts)
     }
 
  /*    fn get_seqno(&self) -> atlas_common::error::Result<SeqNo> {
