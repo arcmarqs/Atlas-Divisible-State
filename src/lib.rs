@@ -241,7 +241,7 @@ impl DivisibleState for StateOrchestrator {
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
  
-    /*     let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+         let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         let mut handles = vec![];
         for chunk in chunks {
             let db_handle = self.db.0.clone();
@@ -270,8 +270,9 @@ impl DivisibleState for StateOrchestrator {
 
         for handle in handles {
             handle.join().unwrap();
-        } */
-        let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
+        }
+
+       /* let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
 
          for prefix in parts {
             let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
@@ -285,8 +286,7 @@ impl DivisibleState for StateOrchestrator {
             tree_lock.insert_leaf(prefix,serialized_part.leaf.clone());
             state_parts.push(serialized_part);
         }
-
-        state_parts.sort_by(|a,b| a.id().cmp(b.id()));
+        */ 
 
         tree_lock.calculate_tree();
         //println!("raw digest {:?}",hasher.finish());
