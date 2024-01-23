@@ -8,7 +8,7 @@ use atlas_common::{collections::HashSet, ordering::SeqNo};
 use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
-pub const PREFIX_LEN: usize = 20;
+pub const PREFIX_LEN: usize = 5;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
@@ -151,9 +151,16 @@ impl StateOrchestrator {
     }
 
     pub fn remove(&mut self, key: &[u8])-> Option<IVec> {
-        if let Ok(res) = self.db.0.remove(key){
-            self.updates.insert(key);
-            res
+        if let Ok(res) = self.db.0.get(key){
+                if res.is_some(){
+                    self.updates.insert(key);
+                    let _ = self.db.0.insert(key, vec![]);
+                    res
+                } else {
+                
+                    None
+                }
+            
         } else {
             None
         }

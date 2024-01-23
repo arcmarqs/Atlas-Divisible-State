@@ -5,6 +5,7 @@ use atlas_metrics::metrics::MetricKind;
 /// 6XX metric ID range
 pub const CREATE_CHECKPOINT_TIME : &str = "CREATE_CHECKPOINT_TIME";
 pub const CREATE_CHECKPOINT_TIME_ID : usize = 800;
+
 pub const CHECKPOINT_SIZE: &str = "DIV_CHECKPOINT_SIZE";
 pub const CHECKPOINT_SIZE_ID: usize = 803;
 
