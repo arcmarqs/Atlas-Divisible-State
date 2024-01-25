@@ -8,7 +8,7 @@ use atlas_common::{collections::HashSet, ordering::SeqNo};
 use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
-pub const PREFIX_LEN: usize = 16;
+pub const PREFIX_LEN: usize = 12;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
@@ -120,7 +120,6 @@ impl StateOrchestrator {
     pub fn new(path: &str) -> Self {
         let conf = Config::new()
         .mode(Mode::HighThroughput)
-        .cache_capacity(3 * 1024 * 1024 * 1024)
         .temporary(true)
         .path(path);
 
