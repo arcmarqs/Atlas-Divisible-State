@@ -62,7 +62,7 @@ pub struct SerializedState {
 
 impl SerializedState {
     pub fn from_prefix(prefix: Prefix, kvs: &[(Box<[u8]>,Box<[u8]>)]) -> Self {
-        let  rsize= 8*(&kvs[0].0.len() + PREFIX_LEN + &kvs[0].1.len());
+        let  rsize= &kvs[0].0.len() + PREFIX_LEN + &kvs[0].1.len();
         let size = (kvs.len() * rsize) as u64;
         let bytes: Box<[u8]> = bincode::serialize(&kvs).expect("failed to serialize").into();
 
