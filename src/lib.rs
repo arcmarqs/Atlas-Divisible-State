@@ -219,7 +219,7 @@ impl DivisibleState for StateOrchestrator {
         &mut self
     ) -> Result<Vec<SerializedState>, Error> {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
-       //metric_store_count(TOTAL_STATE_SIZE_ID, 0);
+       metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
         let process_part = |(k,v) : (IVec,IVec)| {
 
@@ -232,7 +232,7 @@ impl DivisibleState for StateOrchestrator {
 
         if self.updates.is_empty() {
             metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
-            //metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+            metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
 
             return Ok(vec![])
         }
@@ -296,9 +296,9 @@ impl DivisibleState for StateOrchestrator {
         //println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
-       // metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+        metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
         drop(tree_lock);
-        //info!("descriptor {:?}", self.get_descriptor().get_digest());
+        info!("descriptor {:?}", self.get_descriptor().get_digest());
 
         // println!("state size {:?}", self.db.0.expect("failed to read size"));
         // println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
