@@ -1,5 +1,6 @@
 use atlas_common::{crypto::hash::*, ordering::SeqNo};
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use std::{
     cmp::Ordering,
     collections::BTreeMap, sync:: Arc,
@@ -74,10 +75,20 @@ pub struct LeafNode {
     pub digest: Digest,
 }
 
+impl Hash for LeafNode {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.digest.hash(state);
+    }
+}
+
 impl PartialEq for LeafNode {
     fn eq(&self, other: &Self) -> bool {
         self.digest == other.digest
     }
+}
+
+impl Eq for LeafNode {   
 }
 
 impl PartialOrd for LeafNode {
