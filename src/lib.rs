@@ -19,13 +19,12 @@ use sled::IVec;
 use state_orchestrator::{StateOrchestrator, PREFIX_LEN, Prefix};
 use state_tree::LeafNode;
 use crate::metrics::CREATE_CHECKPOINT_TIME_ID;
+use scoped_threadpool::Pool;
 
 pub mod state_orchestrator;
 pub mod state_tree;
 
 pub mod metrics;
-
-const CHECKPOINT_THREADS: usize = 4;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -217,6 +216,7 @@ impl DivisibleState for StateOrchestrator {
 
     fn get_parts(
         &mut self
+        , pool: &mut Pool
     ) -> Result<Vec<SerializedState>, Error> {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
        //metric_store_count(TOTAL_STATE_SIZE_ID, 0);
@@ -237,19 +237,19 @@ impl DivisibleState for StateOrchestrator {
             return Ok(vec![])
         }
 
-        let mut state_parts = Arc::new(Mutex::new(Vec::new()));
+        let state_parts = Arc::new(Mutex::new(Vec::new()));
        // println!("prefix count {:?}", self.updates.seqno);
         let parts = self.updates.extract();
         println!("updates {:?}", parts.len());
  
-         let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
-        let mut handles = vec![];
-        for chunk in chunks {
-            let db_handle = self.db.0.clone();
-            let state_parts = state_parts.clone();
-            let tree = self.mk_tree.clone();
-            let handle = thread::spawn(move || {
-                let mut local_state_parts = Vec::new();
+        let chunks = split_evenly(&parts, pool.thread_count().try_into().unwrap()).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+        pool.scoped(|scope| {
+            for chunk in chunks {   
+                scope.execute(|| {
+                    let db_handle = self.db.0.clone();
+                    let state_parts = state_parts.clone();
+                    let tree = self.mk_tree.clone();
+                    let mut local_state_parts = Vec::new();
                     for prefix in chunk {
                         let kv_iter = db_handle.scan_prefix(prefix.as_ref());
                         let kv_pairs  = kv_iter
@@ -264,40 +264,20 @@ impl DivisibleState for StateOrchestrator {
 
                     tree.write().expect("failed to write").leaves.extend(local_state_parts.iter().map(|part| (Prefix::new(part.id()), part.leaf.clone())));
                     state_parts.lock().expect("failed to lock").extend(local_state_parts.into_iter());  
-            });
-
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-
-        let mut tree_lock = self.mk_tree.write().expect("failed to lock tree");
+                });
+              
+            }
+        });
+       
+        self.mk_tree.write().expect("failed to lock tree").calculate_tree();
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
         let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
-
-        /*
-         for prefix in parts {
-            let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
-            let kv_pairs  = kv_iter
-            .map(|kv| kv.map(process_part).expect("failed to process part") )
-            .collect::<Box<_>>();
-            if kv_pairs.is_empty() {
-                continue;
-            }
-            let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
-            tree_lock.insert_leaf(prefix,serialized_part.leaf.clone());
-            state_parts.push(serialized_part);
-        }
-        */ 
-
-        tree_lock.calculate_tree();
+     
+ 
         //println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
        // metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
-        drop(tree_lock);
        // info!("descriptor {:?}", self.get_descriptor().get_digest());
 
         // println!("state size {:?}", self.db.0.expect("failed to read size"));
