@@ -239,10 +239,9 @@ impl DivisibleState for StateOrchestrator {
 
         let state_parts = Arc::new(Mutex::new(Vec::new()));
        // println!("prefix count {:?}", self.updates.seqno);
-        let parts = self.updates.extract();
-        println!("updates {:?}", parts.len());
+        //println!("updates {:?}", parts.len());
  
-        let chunks = split_evenly(&parts, pool.thread_count().try_into().unwrap()).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+        let chunks = split_evenly(&self.updates.extract(), pool.thread_count().try_into().unwrap()).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         pool.scoped(|scope| {
             for chunk in chunks {   
                 scope.execute(|| {
@@ -263,7 +262,7 @@ impl DivisibleState for StateOrchestrator {
                     } 
 
                     tree.write().expect("failed to write").leaves.extend(local_state_parts.iter().map(|part| (Prefix::new(part.id()), part.leaf.clone())));
-                    state_parts.lock().expect("failed to lock").extend(local_state_parts.into_iter());  
+                    state_parts.lock().expect("failed to lock").extend(local_state_parts.into_iter()); 
                 });
               
             }
@@ -272,7 +271,6 @@ impl DivisibleState for StateOrchestrator {
         self.mk_tree.write().expect("failed to lock tree").calculate_tree();
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
         let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
-     
  
         //println!("raw digest {:?}",hasher.finish());
 
@@ -298,7 +296,7 @@ impl DivisibleState for StateOrchestrator {
 
         //println!("Verifying integrity");
 
-        self.db.0.verify_integrity().expect("integrity check failed");
+        //self.db.0.verify_integrity().expect("integrity check failed");
 
         Ok(())
     } 
