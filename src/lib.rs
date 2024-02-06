@@ -241,7 +241,7 @@ impl DivisibleState for StateOrchestrator {
        // println!("prefix count {:?}", self.updates.seqno);
         //println!("updates {:?}", parts.len());
  
-        let chunks = split_evenly(&self.updates.extract(), pool.thread_count().try_into().unwrap()).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+        let chunks = split_evenly(&self.updates.extract(), 6).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         pool.scoped(|scope| {
             for chunk in chunks {   
                 scope.execute(|| {
@@ -270,7 +270,6 @@ impl DivisibleState for StateOrchestrator {
        
         self.mk_tree.write().expect("failed to lock tree").calculate_tree();
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
-        let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
  
         //println!("raw digest {:?}",hasher.finish());
 
@@ -281,7 +280,7 @@ impl DivisibleState for StateOrchestrator {
         // println!("state size {:?}", self.db.0.expect("failed to read size"));
         // println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
 
-        Ok(parts)
+        Ok(parts_lock.into_inner().expect("Lock still has multiple owners"))
     }
 
  /*    fn get_seqno(&self) -> atlas_common::error::Result<SeqNo> {
