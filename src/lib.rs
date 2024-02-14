@@ -193,8 +193,7 @@ impl DivisibleState for StateOrchestrator {
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
-         //   hasher.update(part.hash().as_ref());
-
+         
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
                 let _ = self.db.0.insert(k.as_slice(),v); 
@@ -241,7 +240,7 @@ impl DivisibleState for StateOrchestrator {
        // println!("prefix count {:?}", self.updates.seqno);
         //println!("updates {:?}", parts.len());
  
-        let chunks = split_evenly(&self.updates.extract(), 6).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+        let chunks = split_evenly(&self.updates.extract(), 4).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         pool.scoped(|scope| {
             for chunk in chunks {   
                 scope.execute(|| {
