@@ -240,7 +240,7 @@ impl DivisibleState for StateOrchestrator {
        // println!("prefix count {:?}", self.updates.seqno);
         //println!("updates {:?}", parts.len());
  
-        let chunks = split_evenly(&self.updates.extract(), 4).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+        let chunks = split_evenly(&self.updates.extract(), 8).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         pool.scoped(|scope| {
             for chunk in chunks {   
                 scope.execute(|| {
