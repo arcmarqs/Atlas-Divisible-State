@@ -288,9 +288,9 @@ impl DivisibleState for StateOrchestrator {
 
     fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {         
 
-        self.mk_tree.write().expect("failed to lock tree").calculate_tree();
+      //  self.mk_tree.write().expect("failed to lock tree").calculate_tree();
 
-        println!("post ST {:?}", self.get_descriptor().get_digest());
+        //println!("post ST {:?}", self.get_descriptor().get_digest());
 
         //println!("Verifying integrity");
 
