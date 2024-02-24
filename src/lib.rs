@@ -238,7 +238,7 @@ impl DivisibleState for StateOrchestrator {
 
         let state_parts = Arc::new(Mutex::new(Vec::new()));
        // println!("prefix count {:?}", self.updates.seqno);
-        //println!("updates {:?}", parts.len());
+        println!("updates {:?}", self.updates.len());
  
         let chunks = split_evenly(&self.updates.extract(), 8).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
         pool.scoped(|scope| {
