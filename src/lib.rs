@@ -188,7 +188,7 @@ impl DivisibleState for StateOrchestrator {
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
         //let mut batch = sled::Batch::default();
         let mut tree_lock = self.mk_tree.write().expect("failed to write");
-        
+        let mut db_lock = self.db.0.write().expect("failed to get write lock");
       // let mut hasher = Context::new();
         for part in parts.iter() {
             let pairs = part.to_pairs();
@@ -196,7 +196,7 @@ impl DivisibleState for StateOrchestrator {
          
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-                let _ = self.db.0.insert(k,v); 
+                let _ = db_lock.insert(k,v); 
             }   
 
             tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
@@ -204,7 +204,7 @@ impl DivisibleState for StateOrchestrator {
         }
 
        // println!("DIGEST {:?}", hasher.finish());
-
+        drop(db_lock);
         drop(tree_lock);
         //self.db.0.apply_batch(batch).expect("failed to apply batch");
         
@@ -246,16 +246,15 @@ impl DivisibleState for StateOrchestrator {
         pool.scoped(|scope| {
             for chunk in chunks {   
                 scope.execute(|| {
-                    let db_handle = self.db.0.clone();
+                    let db_lock = self.db.0.read().expect("failed to get read lock");
                     let state_parts = state_parts.clone();
                     let tree = self.mk_tree.clone();
                     let mut local_state_parts = Vec::new();
                     for prefix in chunk {
                         let r = get_range(&prefix);
                         println!("iter size {:?} {:?}",r.0, r.1);
-                        let kv_iter = db_handle.range(r.0 .. r.1).collect::<Vec<_>>();
-                        let kv_pairs  = kv_iter.into_iter()
-                        .map(process_part).collect::<Box<_>>();
+                        let kv_iter = db_lock.range(r.0 .. r.1);
+                        let kv_pairs  = kv_iter.into_iter().map(process_part).collect::<Box<_>>();
                         if kv_pairs.is_empty() {
                             continue;
                         }

@@ -97,11 +97,11 @@ impl PrefixSet {
 }
 
 #[derive(Debug,Clone)]
-pub struct DbWrapper(pub Arc<ConcurrentMap<Vec<u8>,Vec<u8>>>);
+pub struct DbWrapper(pub Arc<RwLock<BTreeMap<Vec<u8>,Vec<u8>>>>);
 
 impl Default for DbWrapper {
     fn default() -> Self {
-        Self (Arc::new(ConcurrentMap::new()))
+        Self (Arc::new(RwLock::new(BTreeMap::default())))
     }
 }
 
@@ -138,25 +138,18 @@ impl StateOrchestrator {
     }
 */
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<Vec<u8>> {
-        let ret =  self.db.insert(key.to_vec(), value);
+        let ret =  self.db.0.write().expect("failed to write").insert(key.to_vec(), value);
         self.updates.insert(&key);
         ret  
     }
 
     pub fn remove(&mut self, key: &[u8])-> Option<Vec<u8>> {
-        if let Ok(res) = self.db.get(key){
-                if res.is_some(){
-                    self.updates.insert(key);
-                    let _ = self.db.insert(key.clone(), vec![]);
-                    res
-                } else {
-                
-                    None
-                }
-            
-        } else {
-            None
+        let res = self.db.0.read().expect(" failed to read").get(key).cloned();
+        if res.is_some(){
+            self.updates.insert(key);
+            let _ = self.db.0.write().expect("failed to write").insert(key.to_vec(), vec![]);
         }
+        res
     }
 
     pub fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
@@ -170,10 +163,6 @@ impl StateOrchestrator {
         SerializedTree { digest: lock.root, leaves: lock.leaves.values().cloned().collect::<Vec<_>>(), seqno: lock.seqno  }
     }
 
-}
-
-unsafe impl Sync for StateOrchestrator {
-    
 }
 
 pub fn get_range(prefix: &Prefix) -> (Vec<u8>, Vec<u8>) {
