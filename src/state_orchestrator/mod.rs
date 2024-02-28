@@ -128,7 +128,7 @@ impl StateOrchestrator {
             db: DbWrapper::default(),
             updates: PrefixSet::default(),
             mk_tree: Arc::new(RwLock::new(StateTree::default())),
-            keylen: usize,
+            keylen,
         };
 
        ret
