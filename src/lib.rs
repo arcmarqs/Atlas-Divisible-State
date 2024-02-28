@@ -251,8 +251,7 @@ impl DivisibleState for StateOrchestrator {
                     let tree = self.mk_tree.clone();
                     let mut local_state_parts = Vec::new();
                     for prefix in chunk {
-                        let r = get_range(&prefix);
-                        println!("iter size {:?} {:?}",r.0, r.1);
+                        let r = get_range(&prefix,self.keylen);
                         let kv_iter = db_lock.range(r.0 .. r.1);
                         let kv_pairs  = kv_iter.into_iter().map(process_part).collect::<Box<_>>();
                         if kv_pairs.is_empty() {

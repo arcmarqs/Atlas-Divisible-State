@@ -1,4 +1,4 @@
-use std::{collections::{ BTreeMap, BTreeSet}, ops::Range, sync::{Arc, RwLock}};
+use std::{collections::{ vec_deque, BTreeMap, BTreeSet}, ops::Range, sync::{Arc, RwLock}};
 
 use crate::{
     state_tree::StateTree,
@@ -113,10 +113,12 @@ pub struct StateOrchestrator {
     pub updates: PrefixSet,
     #[serde(skip_serializing, skip_deserializing)]
     pub mk_tree: Arc<RwLock<StateTree>>,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub keylen: usize,
 }
 
 impl StateOrchestrator {
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str, keylen: usize) -> Self {
      /*   let conf = Config::new()
         .mode(Mode::HighThroughput)
         .temporary(true)
@@ -126,6 +128,7 @@ impl StateOrchestrator {
             db: DbWrapper::default(),
             updates: PrefixSet::default(),
             mk_tree: Arc::new(RwLock::new(StateTree::default())),
+            keylen: usize,
         };
 
        ret
@@ -162,13 +165,13 @@ impl StateOrchestrator {
 
 }
 
-pub fn get_range(prefix: &Prefix) -> (Vec<u8>, Vec<u8>) {
-    let mut st = vec![0,0,0,0];
-    println!("fill {:?}", st);
+pub fn get_range(prefix: &Prefix,keylen: usize) -> (Vec<u8>, Vec<u8>) {
+    let mut st = vec![0;keylen-PREFIX_LEN];
+    //println!("fill {:?}", st);
     let start = [prefix.0.as_slice(),st.as_slice()].concat();
-    st = vec![255,255,255,255];
+    st = vec![255;keylen-PREFIX_LEN];
     let end = [prefix.0.as_slice(),st.as_slice()].concat();
-    println!("end {:?}", st);
+    //println!("end {:?}", st);
 
     (start,end)
 }
