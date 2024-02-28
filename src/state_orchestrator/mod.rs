@@ -113,12 +113,10 @@ pub struct StateOrchestrator {
     pub updates: PrefixSet,
     #[serde(skip_serializing, skip_deserializing)]
     pub mk_tree: Arc<RwLock<StateTree>>,
-    #[serde(skip_serializing, skip_deserializing)]
-    pub key_len: usize,
 }
 
 impl StateOrchestrator {
-    pub fn new(path: &str,keylen: usize) -> Self {
+    pub fn new(path: &str) -> Self {
      /*   let conf = Config::new()
         .mode(Mode::HighThroughput)
         .temporary(true)
@@ -128,7 +126,6 @@ impl StateOrchestrator {
             db: DbWrapper::default(),
             updates: PrefixSet::default(),
             mk_tree: Arc::new(RwLock::new(StateTree::default())),
-            key_len: keylen,
         };
 
        ret
