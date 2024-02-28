@@ -4,26 +4,27 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use anyhow::Error;
-use atlas_common::crypto::hash::Context;
+use atlas_common::crypto::hash::{Context, self};
 use atlas_common::ordering::{self, SeqNo};
 use atlas_common::{crypto::hash::Digest, ordering::Orderable};
 
 use atlas_metrics::metrics::{metric_duration, metric_store_count, metric_increment};
 use atlas_smr_application::state::divisible_state::{StatePart, DivisibleStateDescriptor, PartId, DivisibleState};
+use blake3::Hasher;
+use log::kv::value;
+use log::{info, debug};
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
-use sled::IVec;
 use state_orchestrator::{StateOrchestrator, PREFIX_LEN, Prefix};
 use state_tree::LeafNode;
 use crate::metrics::CREATE_CHECKPOINT_TIME_ID;
 use crate::state_orchestrator::get_range;
+use scoped_threadpool::Pool;
 
 pub mod state_orchestrator;
 pub mod state_tree;
 
 pub mod metrics;
-
-const CHECKPOINT_THREADS: usize = 4;
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -60,7 +61,8 @@ pub struct SerializedState {
 
 impl SerializedState {
     pub fn from_prefix(prefix: Prefix, kvs: &[(Box<[u8]>,Box<[u8]>)]) -> Self {
-        let size = (kvs.len() * mem::size_of_val(&kvs[0])) as u64;
+        let  rsize= &kvs[0].0.len() + PREFIX_LEN + &kvs[0].1.len();
+        let size = (kvs.len() * rsize) as u64;
         let bytes: Box<[u8]> = bincode::serialize(&kvs).expect("failed to serialize").into();
 
         //println!("bytes {:?}", bytes.len());
@@ -184,26 +186,27 @@ impl DivisibleState for StateOrchestrator {
     }
 
     fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
-        let mut batch = sled::Batch::default();
+        //let mut batch = sled::Batch::default();
         let mut tree_lock = self.mk_tree.write().expect("failed to write");
-        let mut db_lock = self.db.0.write().expect("failed to write");
-
+        
+      // let mut hasher = Context::new();
         for part in parts.iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
+         
             for (k,v) in pairs.iter() {
                 let (k,v) = ([prefix,k.as_ref()].concat(), v.to_vec());
-                 db_lock.insert(k, v) ;
+                let _ = self.db.0.insert(k,v); 
             }   
 
             tree_lock.insert_leaf( Prefix::new(prefix), part.leaf.clone());
 
-            
         }
-        
-        drop(db_lock);
+
+       // println!("DIGEST {:?}", hasher.finish());
+
         drop(tree_lock);
-       // self.db.0.apply_batch(batch).expect("failed to apply batch");
+        //self.db.0.apply_batch(batch).expect("failed to apply batch");
         
         //let _ = self.db.flush();
 
@@ -212,9 +215,10 @@ impl DivisibleState for StateOrchestrator {
 
     fn get_parts(
         &mut self
+        , pool: &mut Pool
     ) -> Result<Vec<SerializedState>, Error> {
        metric_store_count(CHECKPOINT_SIZE_ID, 0);
-       metric_store_count(TOTAL_STATE_SIZE_ID, 0);
+       //metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
         let process_part = |(k,v) : (&Vec<u8>,&Vec<u8>)| {
 
@@ -233,23 +237,23 @@ impl DivisibleState for StateOrchestrator {
         }
 
         let state_parts = Arc::new(Mutex::new(Vec::new()));
-
-        let parts = self.updates.extract();
-        println!("updates {:?}", parts.len());
+       // println!("prefix count {:?}", self.updates.seqno);
+        println!("updates {:?}", self.updates.len());
  
-        let chunks = split_evenly(parts.clone().as_slice(), CHECKPOINT_THREADS).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
-        let mut handles = vec![];
-        for chunk in chunks {
-            let db_handle = self.db.0.clone();
-            let state_parts = state_parts.clone();
-            let tree = self.mk_tree.clone();
-            let handle = thread::spawn(move || {
-                let mut local_state_parts = Vec::new();
-                    let db_lock = db_handle.read().expect("failed to read");
+        let chunks = split_evenly(&self.updates.extract(), 8).map(|chunk| chunk.to_owned()).collect::<Vec<_>>();
+        println!("updates after extract {:?}", self.updates.len());
+
+        pool.scoped(|scope| {
+            for chunk in chunks {   
+                scope.execute(|| {
+                    let db_handle = self.db.0.clone();
+                    let state_parts = state_parts.clone();
+                    let tree = self.mk_tree.clone();
+                    let mut local_state_parts = Vec::new();
                     for prefix in chunk {
                         let r = get_range(&prefix);
                         println!("iter size {:?} {:?}",r.0, r.1);
-                        let kv_iter = db_lock.range(r.0 .. r.1).collect::<Vec<_>>();
+                        let kv_iter = db_handle.range(r.0 .. r.1).collect::<Vec<_>>();
                         let kv_pairs  = kv_iter.into_iter()
                         .map(process_part).collect::<Box<_>>();
                         if kv_pairs.is_empty() {
@@ -260,60 +264,40 @@ impl DivisibleState for StateOrchestrator {
                     } 
 
                     tree.write().expect("failed to write").leaves.extend(local_state_parts.iter().map(|part| (Prefix::new(part.id()), part.leaf.clone())));
-                    state_parts.lock().expect("failed to lock").extend(local_state_parts.into_iter());  
-            });
-
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-     /*    for prefix in parts {
-            println!("{:?}", prefix);
-            let kv_iter = self.db.0.scan_prefix(prefix.as_ref());
-            let kv_pairs  = kv_iter
-            .map(|kv| kv.map(process_part).expect("failed to process part") )
-            .collect::<Box<_>>();
-            if kv_pairs.is_empty() {
-                continue;
+                    state_parts.lock().expect("failed to lock").extend(local_state_parts.into_iter()); 
+                });
+              
             }
-            let serialized_part = SerializedState::from_prefix(prefix.clone(),kv_pairs.as_ref());
-            state_parts.push(serialized_part);
-        }*/
-
+        });
+       
+        self.mk_tree.write().expect("failed to lock tree").calculate_tree();
         let parts_lock = Arc::try_unwrap(state_parts).expect("Lock still has multiple owners");
-        let parts = parts_lock.into_inner().expect("Lock still has multiple owners");
-        //println!("descriptor {:?}", self.mk_tree.read().expect("failed to read").leaves.values().map(|v| v.digest).collect::<Vec<_>>());
-
-        self.mk_tree.write().expect("failed to write").calculate_tree();
-        //println!("parts {:?}", state_parts);
-
+ 
+        //println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
        // metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
-        
-       //println!("state size {:?}", self.db.0.expect("failed to read size"));
-      //  println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
-        Ok(parts)
+       // info!("descriptor {:?}", self.get_descriptor().get_digest());
+
+        // println!("state size {:?}", self.db.0.expect("failed to read size"));
+        // println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
+
+        Ok(parts_lock.into_inner().expect("Lock still has multiple owners"))
     }
 
  /*    fn get_seqno(&self) -> atlas_common::error::Result<SeqNo> {
         Ok(self.mk_tree.read().expect("failed to read").get_seqno())
     } */
 
-    fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {           
-        metric_store_count(TOTAL_STATE_SIZE_ID, 0);
-        self.mk_tree.write().expect("failed to get write").calculate_tree();
-        println!("post state transfer tree {:?}", self.get_descriptor().digest);
-        
-        //metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
+    fn finalize_transfer(&mut self) -> atlas_common::error::Result<()> {         
 
-        //println!("finished st {:?}", self.get_descriptor());
+      //  self.mk_tree.write().expect("failed to lock tree").calculate_tree();
+
+        //println!("post ST {:?}", self.get_descriptor().get_digest());
 
         //println!("Verifying integrity");
 
-       //self.db.0.verify_integrity().expect("integrity check failed");
+        //self.db.0.verify_integrity().expect("integrity check failed");
 
         Ok(())
     } 

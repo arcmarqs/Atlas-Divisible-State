@@ -9,6 +9,7 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+log = "0.4.19"
 anyhow = "1.0.75"
 thiserror = "1.0.50"
 atlas-core={path = "../Atlas-Core" }
@@ -20,4 +21,6 @@ atlas-metrics = {path = "../Atlas-Metrics" }
 serde = { version = "*", optional = false }
 blake3 = { version = "*", optional = false }
 bincode = { version = "*", optional = false }
-sled = { version = "0.34.7"}
+scoped_threadpool = "0.1.9"
+concurrent-map = "5.0.33"
+

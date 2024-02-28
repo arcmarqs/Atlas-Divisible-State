@@ -1,13 +1,14 @@
-use std::{sync::{Arc, RwLock}, collections:: BTreeMap, ops::Range};
+use std::{collections::{ BTreeMap, BTreeSet}, ops::Range, sync::{Arc, RwLock}};
 
 use crate::{
     state_tree::StateTree,
     SerializedTree,
 };
-use atlas_common::collections::HashSet;
+use atlas_common::{collections::HashSet, ordering::SeqNo};
+use concurrent_map::ConcurrentMap;
 use serde::{Deserialize, Serialize};
-use sled::{Config, Db, Mode, Subscriber, IVec,};
-pub const PREFIX_LEN: usize = 4;
+use log::{debug, error, info, trace, warn};
+pub const PREFIX_LEN: usize = 14;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
@@ -27,15 +28,23 @@ impl Prefix {
  //   }
 }
 // A bitmap that registers changed prefixes over a set of keys
-#[derive(Debug,Default,Clone)]
+#[derive(Debug, Clone)]
 pub struct PrefixSet {
-    pub prefixes: HashSet<Prefix>,
+    pub prefixes: BTreeSet<Prefix>,
+    pub seqno: SeqNo,
+}
+
+impl Default for PrefixSet {
+    fn default() -> Self {
+        Self { prefixes: Default::default(), seqno: SeqNo::ZERO }
+    }
 }
 
 impl PrefixSet {
     pub fn new() -> PrefixSet {
         Self { 
-            prefixes: HashSet::default(), 
+            prefixes: BTreeSet::default(), 
+            seqno: SeqNo::ZERO,
         }
     }
 
@@ -49,6 +58,7 @@ impl PrefixSet {
       //      self.prefixes.insert(prefix);
       //  } else {
             self.prefixes.insert(prefix);
+            self.seqno = self.seqno.next();
        // }
 
        // if self.prefixes.len() >= 8000 {
@@ -66,14 +76,14 @@ impl PrefixSet {
     }
 
     pub fn clear(&mut self) {
+        self.seqno = SeqNo::ZERO;
         self.prefixes.clear();
        // self.prefix_len = 0;
     }
 
     pub fn extract(&mut self) -> Vec<Prefix> {
         let vec = self.prefixes.iter().cloned().collect::<Vec<_>>();
-        self.prefixes.clear();
-
+        self.clear();
         vec
     }
    // fn merge_prefixes(&mut self) {
@@ -87,13 +97,14 @@ impl PrefixSet {
 }
 
 #[derive(Debug,Clone)]
-pub struct DbWrapper(pub Arc<RwLock<BTreeMap<Vec<u8>,Vec<u8>>>>);
+pub struct DbWrapper(pub Arc<ConcurrentMap<Vec<u8>,Vec<u8>>>);
 
 impl Default for DbWrapper {
     fn default() -> Self {
-        Self (Arc::new(RwLock::new(BTreeMap::default())) )
+        Self (Arc::new(ConcurrentMap::new()))
     }
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateOrchestrator {
     #[serde(skip_serializing, skip_deserializing)]
@@ -107,15 +118,14 @@ pub struct StateOrchestrator {
 }
 
 impl StateOrchestrator {
-    pub fn new(path: &str, keylen: usize) -> Self {
+    pub fn new(path: &str,keylen: usize) -> Self {
      /*   let conf = Config::new()
         .mode(Mode::HighThroughput)
         .temporary(true)
         .path(path);*/ 
-
-        let db =  RwLock::new(BTreeMap::<Vec<u8>,Vec<u8>>::default());
+        
         let ret = Self {
-            db: DbWrapper(Arc::new(db)),
+            db: DbWrapper::default(),
             updates: PrefixSet::default(),
             mk_tree: Arc::new(RwLock::new(StateTree::default())),
             key_len: keylen,
@@ -128,15 +138,22 @@ impl StateOrchestrator {
     }
 */
     pub fn insert(&mut self, key: &[u8], value: Vec<u8>) -> Option<Vec<u8>> {
-        let ret =  self.db.0.write().expect(" failed to write").insert(key.to_vec(), value);
+        let ret =  self.db.insert(key.to_vec(), value);
         self.updates.insert(&key);
         ret  
     }
 
     pub fn remove(&mut self, key: &[u8])-> Option<Vec<u8>> {
-        if let Some(res) =  self.db.0.write().expect(" failed to write").remove(key) {
-            self.updates.insert(&key);
-            Some(res)
+        if let Ok(res) = self.db.get(key){
+                if res.is_some(){
+                    self.updates.insert(key);
+                    let _ = self.db.insert(key.clone(), vec![]);
+                    res
+                } else {
+                
+                    None
+                }
+            
         } else {
             None
         }
@@ -153,6 +170,10 @@ impl StateOrchestrator {
         SerializedTree { digest: lock.root, leaves: lock.leaves.values().cloned().collect::<Vec<_>>(), seqno: lock.seqno  }
     }
 
+}
+
+unsafe impl Sync for StateOrchestrator {
+    
 }
 
 pub fn get_range(prefix: &Prefix) -> (Vec<u8>, Vec<u8>) {
