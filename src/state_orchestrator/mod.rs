@@ -8,7 +8,7 @@ use atlas_common::{collections::HashSet, ordering::SeqNo};
 use concurrent_map::ConcurrentMap;
 use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
-pub const PREFIX_LEN: usize = 0;
+pub const PREFIX_LEN: usize = 15;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
