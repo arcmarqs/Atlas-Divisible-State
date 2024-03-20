@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
 use sled::{Config, Db, Mode, Subscriber, IVec,};
 
-pub const PREFIX_LEN: usize = 0;
+pub const PREFIX_LEN: usize = 2;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
