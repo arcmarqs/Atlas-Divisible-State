@@ -16,7 +16,7 @@ use log::{info, debug};
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
 use sled::IVec;
-use state_orchestrator::{StateOrchestrator, PREFIX_LEN, Prefix};
+use state_orchestrator::{StateOrchestrator, Prefix};
 use state_tree::LeafNode;
 use crate::metrics::CREATE_CHECKPOINT_TIME_ID;
 use scoped_threadpool::Pool;
@@ -25,6 +25,8 @@ pub mod state_orchestrator;
 pub mod state_tree;
 
 pub mod metrics;
+
+include!("generated.rs");
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
