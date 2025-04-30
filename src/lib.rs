@@ -65,7 +65,7 @@ impl SerializedState {
     pub fn from_prefix(prefix: Prefix, kvs: &[(Box<[u8]>,Box<[u8]>)]) -> Self {
         let  rsize= &kvs[0].0.len() + PREFIX_LEN + &kvs[0].1.len();
         let size = (kvs.len() * rsize) as u64;
-        let bytes: Box<[u8]> = bincode::serialize(&kvs).expect("failed to serialize").into();
+        let bytes: Box<[u8]> = bincode::serde::encode_to_vec(&kvs,bincode::config::standard()).expect("failed to serialize").into();
 
         //println!("bytes {:?}", bytes.len());
         //hasher.update(&pid.to_be_bytes());
@@ -83,7 +83,7 @@ impl SerializedState {
     }
 
     pub fn to_pairs(&self) -> Box<[(Box<[u8]>,Box<[u8]>)]> {
-        let kv_pairs: Box<[(Box<[u8]>,Box<[u8]>)]> = bincode::deserialize(&self.bytes).expect("failed to deserialize");
+        let (kv_pairs,_size) = bincode::decode_from_slice(&self.bytes, bincode::config::standard()).expect("failed to deserialize");
 
         kv_pairs
     }
