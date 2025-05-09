@@ -234,7 +234,7 @@ impl DivisibleState for StateOrchestrator {
         if self.updates.is_empty() {
             metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
            // metric_increment(TOTAL_STATE_SIZE_ID, Some(self.db.0.size_on_disk().expect("failed to get size")));
-           println!("SIZE ON DISK {:?}", self.db.0.size_on_disk().expect("failed to get size"));
+          // println!("SIZE ON DISK {:?}", self.db.0.size_on_disk().expect("failed to get size"));
 
             return Ok(vec![])
         }
@@ -278,7 +278,7 @@ impl DivisibleState for StateOrchestrator {
         //println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
-        println!("SIZE ON DISK {:?}", self.db.0.size_on_disk().expect("failed to get size"));
+      //  println!("SIZE ON DISK {:?}", self.db.0.size_on_disk().expect("failed to get size"));
        // metric_store_count(TOTAL_STATE_SIZE_ID, self.db.0.size_on_disk().expect("failed to get size").try_into().unwrap());
        // info!("descriptor {:?}", self.get_descriptor().get_digest());
 
