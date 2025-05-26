@@ -15,7 +15,7 @@ use log::kv::value;
 use log::{info, debug};
 use metrics::{CHECKPOINT_SIZE_ID, TOTAL_STATE_SIZE_ID};
 use serde::{Deserialize, Serialize};
-use state_orchestrator::{StateOrchestrator, PREFIX_LEN, Prefix};
+use state_orchestrator::{StateOrchestrator, Prefix};
 use state_tree::LeafNode;
 use crate::metrics::CREATE_CHECKPOINT_TIME_ID;
 use crate::state_orchestrator::get_range;
@@ -25,6 +25,8 @@ pub mod state_orchestrator;
 pub mod state_tree;
 
 pub mod metrics;
+
+include!("generated.rs");
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -63,8 +65,7 @@ impl SerializedState {
     pub fn from_prefix(prefix: Prefix, kvs: &[(Box<[u8]>,Box<[u8]>)]) -> Self {
         let  rsize= &kvs[0].0.len() + PREFIX_LEN + &kvs[0].1.len();
         let size = (kvs.len() * rsize) as u64;
-        let bytes: Box<[u8]> = bincode::serialize(&kvs).expect("failed to serialize").into();
-
+        let bytes: Box<[u8]> = bincode::serde::encode_to_vec(&kvs,bincode::config::standard()).expect("failed to serialize").into();
         //println!("bytes {:?}", bytes.len());
         //hasher.update(&pid.to_be_bytes());
         let mut hasher = Context::new();
@@ -81,8 +82,7 @@ impl SerializedState {
     }
 
     pub fn to_pairs(&self) -> Box<[(Box<[u8]>,Box<[u8]>)]> {
-        let kv_pairs: Box<[(Box<[u8]>,Box<[u8]>)]> = bincode::deserialize(&self.bytes).expect("failed to deserialize");
-
+        let (kv_pairs,_size) = bincode::decode_from_slice(&self.bytes, bincode::config::standard()).expect("failed to deserialize");
         kv_pairs
     }
 

@@ -5,7 +5,6 @@ use std::{
     cmp::Ordering,
     collections::BTreeMap, sync:: Arc,
 };
-
 use crate::state_orchestrator::Prefix;
 // This Merkle tree is based on merkle mountain ranges
 // The Merkle mountain range was invented by Peter Todd. More detalis can be read at

@@ -1,14 +1,10 @@
 use std::{collections::{ vec_deque, BTreeMap, BTreeSet}, ops::Range, sync::{Arc, RwLock}};
 
-use crate::{
-    state_tree::StateTree,
-    SerializedTree,
-};
+use crate::{state_tree::StateTree, SerializedTree, PREFIX_LEN};
 use atlas_common::{collections::HashSet, ordering::SeqNo};
 use concurrent_map::ConcurrentMap;
 use serde::{Deserialize, Serialize};
 use log::{debug, error, info, trace, warn};
-include!("generated.rs");
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,Hash)]
 pub struct Prefix(pub [u8;PREFIX_LEN]);
