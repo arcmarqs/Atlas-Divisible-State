@@ -240,7 +240,7 @@ impl DivisibleState for StateOrchestrator {
         // println!("prefix count {:?}", self.updates.seqno);
         println!("updates {:?}", self.updates.len());
 
-        let chunks = split_evenly(&self.updates.extract(), 40)
+        let chunks = split_evenly(&self.updates.extract(), 36)
             .map(|chunk| chunk.to_owned())
             .collect::<Vec<_>>();
         println!("updates after extract {:?}", self.updates.len());
