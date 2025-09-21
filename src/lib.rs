@@ -271,7 +271,6 @@ impl DivisibleState for StateOrchestrator {
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
                     );
-                    println!("SENDING CHECKPOINT PARTS TO PST");
                     let parts = AppState::StatePart(MaybeVec::Mult(local_state_parts));
 
                     if checkpoint_tx.clone().send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
