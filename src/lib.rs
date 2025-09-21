@@ -243,7 +243,6 @@ impl DivisibleState for StateOrchestrator {
         let chunks = split_evenly(&self.updates.extract(), 24)
             .map(|chunk| chunk.to_owned())
             .collect::<Vec<_>>();
-        println!("updates after extract {:?}", self.updates.len());
 
         let next_seqno = self.mk_tree.read().expect("failed to lock tree").get_seqno()+1.into();
 
