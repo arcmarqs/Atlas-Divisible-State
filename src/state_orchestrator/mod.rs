@@ -126,7 +126,6 @@ pub struct StateOrchestrator {
 impl StateOrchestrator {
     pub fn new(path: &str) -> Self {
         let conf = Config::new()
-            .mode(Mode::HighThroughput)
             .temporary(true)
             .path(path);
 
