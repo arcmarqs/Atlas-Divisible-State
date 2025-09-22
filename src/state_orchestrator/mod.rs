@@ -125,15 +125,14 @@ pub struct StateOrchestrator {
 
 impl StateOrchestrator {
     pub fn new(path: &str) -> Self {
-        let conf = Config::new()
-            .compression_factor(2)
+        let conf = Config::default()
+            .compression_factor(3)
             .cache_capacity(64 * 1024* 1024)
+            .use_compression(true)
             .temporary(true)
             .path(path);
 
         let db = conf.open().unwrap();
-
-        let _ = db.drop_tree("state");
 
         let ret = Self {
             db: DbWrapper(Arc::new(db)),
