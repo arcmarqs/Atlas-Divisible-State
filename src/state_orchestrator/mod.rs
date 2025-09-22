@@ -126,6 +126,8 @@ pub struct StateOrchestrator {
 impl StateOrchestrator {
     pub fn new(path: &str) -> Self {
         let conf = Config::new()
+            .compression_factor(2)
+            .cache_capacity(64 * 1024* 1024)
             .temporary(true)
             .path(path);
 
@@ -153,6 +155,7 @@ impl StateOrchestrator {
         } else {
             None
         }
+
     }
 
     pub fn remove(&mut self, key: &[u8]) -> Option<IVec> {
