@@ -206,7 +206,6 @@ impl DivisibleState for StateOrchestrator {
         }
 
        // println!("DIGEST {:?}", hasher.finish());
-
         drop(tree_lock);
         //self.db.0.apply_batch(batch).expect("failed to apply batch");
         
