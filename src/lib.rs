@@ -279,6 +279,8 @@ impl DivisibleState for StateOrchestrator {
             }
         });
 
+        println!("tree size: {:?}", self.mk_tree.read().unwrap().leaves.len());
+        
         self.mk_tree
             .write()
             .expect("failed to lock tree")
