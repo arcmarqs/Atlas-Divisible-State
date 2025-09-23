@@ -12,6 +12,7 @@ readme = "README.md"
 log = "0.4.19"
 anyhow = "1.0.75"
 thiserror = "1.0.50"
+libc = "*"
 atlas-core={path = "../Atlas-Core" }
 atlas-common = {path = "../Atlas-Common" }
 atlas-communication = {path = "../Atlas-Communication" }
