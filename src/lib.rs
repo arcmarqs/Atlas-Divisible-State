@@ -238,7 +238,7 @@ impl DivisibleState for StateOrchestrator {
         }
 
         // println!("prefix count {:?}", self.updates.seqno);
-        println!("updates {:?}", self.updates.len());
+       // println!("updates {:?}", self.updates.len());
 
         let chunks = split_evenly(&self.updates.extract(), 16)
             .map(|chunk| chunk.to_owned())
@@ -279,7 +279,6 @@ impl DivisibleState for StateOrchestrator {
             }
         });
 
-        println!("tree size: {:?}", self.mk_tree.read().unwrap().leaves.len());
         
         self.mk_tree
             .write()
@@ -297,13 +296,7 @@ impl DivisibleState for StateOrchestrator {
 
         // println!("state size {:?}", self.db.0.expect("failed to read size"));
         // println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
-        let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
-        let parts: Vec<&str> = statm.split_whitespace().collect();
-        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
-        let rss_pages: i64 = parts[1].parse().unwrap();
-        let rss_bytes = rss_pages as i64 * page_size;
-        println!("Resident set size: {:.2} MB", rss_bytes as f64 / (1024.0 * 1024.0));
-
+    
         Ok(())
     }
 
