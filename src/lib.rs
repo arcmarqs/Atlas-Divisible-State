@@ -301,7 +301,7 @@ impl DivisibleState for StateOrchestrator {
         let rss_pages: i64 = parts[1].parse().unwrap();
         let rss_bytes = rss_pages as i64 * page_size;
         println!("Resident set size: {:.2} MB", rss_bytes as f64 / (1024.0 * 1024.0));
-        
+
         Ok(())
     }
 
