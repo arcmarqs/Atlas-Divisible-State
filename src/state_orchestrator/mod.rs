@@ -128,8 +128,8 @@ impl StateOrchestrator {
         let conf = Config::default()
             .compression_factor(3)
             .cache_capacity(64 * 1024* 1024)
-            .use_compression(true)
             .temporary(true)
+            .print_profile_on_drop(true)
             .path(path);
 
         let db = conf.open().unwrap();
