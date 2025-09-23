@@ -284,6 +284,8 @@ impl DivisibleState for StateOrchestrator {
             .expect("failed to lock tree")
             .calculate_tree();
 
+        
+
         //println!("raw digest {:?}",hasher.finish());
 
         metric_duration(CREATE_CHECKPOINT_TIME_ID, checkpoint_start.elapsed());
@@ -293,7 +295,8 @@ impl DivisibleState for StateOrchestrator {
 
         // println!("state size {:?}", self.db.0.expect("failed to read size"));
         // println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
-
+        println!("Static size of StateTree struct: {} bytes", mem::size_of_val(&self.mk_tree));
+        println!("Static size of BTreeMap field: {} bytes", mem::size_of_val(&self.mk_tree.read().unwrap().leaves));
         Ok(())
     }
 
