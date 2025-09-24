@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use sled::IVec;
 use state_orchestrator::{Prefix, StateOrchestrator};
 use state_tree::LeafNode;
+use tikv_jemalloc_ctl::{stats};
 
 pub mod state_orchestrator;
 pub mod state_tree;
@@ -272,7 +273,7 @@ impl DivisibleState for StateOrchestrator {
                     );
                     let parts = AppState::StatePart(MaybeVec::Mult(local_state_parts));
 
-                    if checkpoint_tx.clone().send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
+                    if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
                     }
                 });
@@ -296,7 +297,7 @@ impl DivisibleState for StateOrchestrator {
 
         // println!("state size {:?}", self.db.0.expect("failed to read size"));
         // println!("checkpoint size {:?}",  state_parts.iter().map(|f| mem::size_of_val(*&(&f).bytes()) as u64).sum::<u64>());
-    
+        
         Ok(())
     }
 
