@@ -24,7 +24,6 @@ use serde::{Deserialize, Serialize};
 use sled::IVec;
 use state_orchestrator::{Prefix, StateOrchestrator};
 use state_tree::LeafNode;
-use tikv_jemalloc_ctl::{stats};
 
 pub mod state_orchestrator;
 pub mod state_tree;
