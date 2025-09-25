@@ -245,7 +245,7 @@ impl DivisibleState for StateOrchestrator {
             .collect::<Vec<_>>();
 
         let next_seqno = self.mk_tree.read().expect("failed to lock tree").get_seqno()+1.into();
-
+        let _profiler = dhat::Profiler::new_heap();
         pool.scoped(|scope| {
             for chunk in chunks {
                 scope.execute(|| {
@@ -261,11 +261,9 @@ impl DivisibleState for StateOrchestrator {
                         if kv_pairs.is_empty() {
                             continue;
                         }
-                        let _profiler = dhat::Profiler::new_heap();
 
                         let serialized_part =
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
-                        drop(_profiler);
 
                         local_state_parts.push(serialized_part);
                     }
@@ -285,6 +283,7 @@ impl DivisibleState for StateOrchestrator {
                 });
             }
         });
+        drop(_profiler);
 
         
         self.mk_tree
