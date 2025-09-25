@@ -265,18 +265,18 @@ impl DivisibleState for StateOrchestrator {
                         local_state_parts.push(serialized_part);
                     }
 
-                  /* tree.write().expect("failed to write").leaves.extend(
+                    tree.write().expect("failed to write").leaves.extend(
                         local_state_parts
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
-                    ); */
+                    ); 
 
 
-                    let parts = AppState::StatePart(MaybeVec::Mult(local_state_parts));
+                    let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(local_state_parts));
 
-                    if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
+                  /*  if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
-                    }
+                    } */
                 });
             }
         });
