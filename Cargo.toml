@@ -25,3 +25,4 @@ blake3 = { version = "*", optional = false }
 bincode = { version = "2.0.1", optional = false }
 sled = { version = "0.34.7", default-features = false, features = ["io_uring"]}
 scoped_threadpool = "0.1.9"
+dhat="0.3"

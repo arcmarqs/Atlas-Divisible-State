@@ -249,6 +249,8 @@ impl DivisibleState for StateOrchestrator {
         pool.scoped(|scope| {
             for chunk in chunks {
                 scope.execute(|| {
+                    let _profiler = dhat::Profiler::new_heap();
+
                     let db_handle = self.db.0.clone();
                     let tree = self.mk_tree.clone();
                     let mut local_state_parts = Vec::new();
@@ -263,7 +265,6 @@ impl DivisibleState for StateOrchestrator {
                         let serialized_part =
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
                         local_state_parts.push(serialized_part);
-                        drop(kv_pairs);
                     }
 
                     tree.write().expect("failed to write").leaves.extend(
@@ -278,6 +279,7 @@ impl DivisibleState for StateOrchestrator {
                     if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
                     }
+                    drop(_profiler);
                 });
             }
         });
