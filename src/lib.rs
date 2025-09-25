@@ -221,11 +221,11 @@ impl DivisibleState for StateOrchestrator {
         metric_store_count(CHECKPOINT_SIZE_ID, 0);
         //metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
-      /*  let process_part = |(k, v): (IVec, IVec)| {
+        let process_part = |(k, v): (IVec, IVec)| {
             metric_increment(CHECKPOINT_SIZE_ID, Some((k.len() + v.len()) as u64));
 
             (k[PREFIX_LEN..].into(), v.deref().into())
-        }; */
+        };
 
         let checkpoint_start = Instant::now();
 
