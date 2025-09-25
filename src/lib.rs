@@ -261,15 +261,19 @@ impl DivisibleState for StateOrchestrator {
                             continue;
                         }
                         let serialized_part =
-                            SerializedState::from_prefix(prefix.clone(), kv_pairs.as_ref());
+                            SerializedState::from_prefix(prefix, kv_pairs.as_ref());
                         local_state_parts.push(serialized_part);
                     }
+                    drop(db_handle);
 
                     tree.write().expect("failed to write").leaves.extend(
                         local_state_parts
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
                     );
+
+                    drop(tree);
+
                     let parts = AppState::StatePart(MaybeVec::Mult(local_state_parts));
 
                     if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
