@@ -250,23 +250,23 @@ impl DivisibleState for StateOrchestrator {
             for chunk in chunks {
                 scope.execute(|| {
                     let db_handle = self.db.0.clone();
-                 //   let tree = self.mk_tree.clone();
-                   // let mut local_state_parts = Vec::new();
+                    let tree = self.mk_tree.clone();
+                    let mut local_state_parts = Vec::new();
                     for prefix in chunk {
                         let kv_iter = db_handle.scan_prefix(prefix.as_ref());
                         let kv_pairs: Vec<_> = kv_iter.collect();
-                       /* let kv_pairs = kv_iter
+                        let kv_pairs = kv_iter
                             .map(|kv| kv.map(process_part).expect("failed to process part"))
-                            .collect::<Box<_>>(); */
+                            .collect::<Box<_>>();
                         if kv_pairs.is_empty() {
                             continue;
                         }
-                      /* let serialized_part =
+                        let serialized_part =
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
-                        local_state_parts.push(serialized_part); */
+                        local_state_parts.push(serialized_part);
                     }
 
-                 /*   tree.write().expect("failed to write").leaves.extend(
+                    tree.write().expect("failed to write").leaves.extend(
                         local_state_parts
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
@@ -277,17 +277,17 @@ impl DivisibleState for StateOrchestrator {
 
                     if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
-                    } */
+                    }
                 });
             }
         });
 
         
-      /*   self.mk_tree
+        self.mk_tree
             .write()
             .expect("failed to lock tree")
             .calculate_tree();
-        */
+        
         
 
         //println!("raw digest {:?}",hasher.finish());
