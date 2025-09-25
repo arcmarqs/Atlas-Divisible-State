@@ -254,7 +254,6 @@ impl DivisibleState for StateOrchestrator {
                     let mut local_state_parts = Vec::new();
                     for prefix in chunk {
                         let kv_iter = db_handle.scan_prefix(prefix.as_ref());
-                        let kv_pairs: Vec<_> = kv_iter.collect();
                         let kv_pairs = kv_iter
                             .map(|kv| kv.map(process_part).expect("failed to process part"))
                             .collect::<Box<_>>();
