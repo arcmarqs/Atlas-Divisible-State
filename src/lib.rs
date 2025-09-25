@@ -264,15 +264,13 @@ impl DivisibleState for StateOrchestrator {
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
                         local_state_parts.push(serialized_part);
                     }
-                    drop(db_handle);
 
                   /* tree.write().expect("failed to write").leaves.extend(
                         local_state_parts
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
-                    );*/ 
+                    ); */
 
-                    drop(tree);
 
                     let parts = AppState::StatePart(MaybeVec::Mult(local_state_parts));
 
@@ -284,11 +282,11 @@ impl DivisibleState for StateOrchestrator {
         });
 
         
-        self.mk_tree
+      /*   self.mk_tree
             .write()
             .expect("failed to lock tree")
             .calculate_tree();
-
+        */
         
 
         //println!("raw digest {:?}",hasher.finish());
