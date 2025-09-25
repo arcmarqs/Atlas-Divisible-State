@@ -266,11 +266,11 @@ impl DivisibleState for StateOrchestrator {
                     }
                     drop(db_handle);
 
-                    tree.write().expect("failed to write").leaves.extend(
+                  /* tree.write().expect("failed to write").leaves.extend(
                         local_state_parts
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
-                    );
+                    );*/ 
 
                     drop(tree);
 
