@@ -263,6 +263,7 @@ impl DivisibleState for StateOrchestrator {
                         let serialized_part =
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
                         local_state_parts.push(serialized_part);
+                        drop(kv_pairs);
                     }
 
                     tree.write().expect("failed to write").leaves.extend(
