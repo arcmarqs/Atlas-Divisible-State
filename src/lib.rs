@@ -221,11 +221,11 @@ impl DivisibleState for StateOrchestrator {
         metric_store_count(CHECKPOINT_SIZE_ID, 0);
         //metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
-        let process_part = |(k, v): (IVec, IVec)| {
+      /*  let process_part = |(k, v): (IVec, IVec)| {
             metric_increment(CHECKPOINT_SIZE_ID, Some((k.len() + v.len()) as u64));
 
             (k[PREFIX_LEN..].into(), v.deref().into())
-        };
+        }; */
 
         let checkpoint_start = Instant::now();
 
@@ -250,22 +250,23 @@ impl DivisibleState for StateOrchestrator {
             for chunk in chunks {
                 scope.execute(|| {
                     let db_handle = self.db.0.clone();
-                    let tree = self.mk_tree.clone();
-                    let mut local_state_parts = Vec::new();
+                 //   let tree = self.mk_tree.clone();
+                   // let mut local_state_parts = Vec::new();
                     for prefix in chunk {
                         let kv_iter = db_handle.scan_prefix(prefix.as_ref());
-                        let kv_pairs = kv_iter
+                        let kv_pairs: Vec<_> = kv_iter.collect();
+                       /* let kv_pairs = kv_iter
                             .map(|kv| kv.map(process_part).expect("failed to process part"))
-                            .collect::<Box<_>>();
+                            .collect::<Box<_>>(); */
                         if kv_pairs.is_empty() {
                             continue;
                         }
-                        let serialized_part =
+                      /* let serialized_part =
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
-                        local_state_parts.push(serialized_part);
+                        local_state_parts.push(serialized_part); */
                     }
 
-                    tree.write().expect("failed to write").leaves.extend(
+                 /*   tree.write().expect("failed to write").leaves.extend(
                         local_state_parts
                             .iter()
                             .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
@@ -274,7 +275,7 @@ impl DivisibleState for StateOrchestrator {
 
                     let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(local_state_parts));
 
-                  /*  if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
+                    if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
                     } */
                 });
