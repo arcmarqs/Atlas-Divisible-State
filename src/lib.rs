@@ -207,7 +207,7 @@ impl DivisibleState for StateOrchestrator {
             tree_lock.insert_leaf(Prefix::new(prefix), part.leaf);
         }
 
-        // println!("DIGEST {:?}", hasher.finish());
+        println!("INSTALLED PARTS");
 
         //self.db.0.apply_batch(batch).expect("failed to apply batch");
 
