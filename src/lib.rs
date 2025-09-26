@@ -69,7 +69,7 @@ impl SerializedState {
     pub fn from_prefix(prefix: Prefix, kvs: &[(Box<[u8]>, Box<[u8]>)]) -> Self {
         let rsize = &kvs[0].0.len() + PREFIX_LEN + &kvs[0].1.len();
         let size = (kvs.len() * rsize) as u64;
-        let bytes: Box<[u8]> = bincode::serde::encode_to_vec(&kvs, bincode::config::standard())
+        let bytes: Box<[u8]> = bincode::serde::encode_to_vec(kvs, bincode::config::standard())
             .expect("failed to serialize")
             .into();
 
@@ -87,7 +87,7 @@ impl SerializedState {
 
     pub fn to_pairs(&self) -> Box<[(Box<[u8]>, Box<[u8]>)]> {
         let (kv_pairs, _size) =
-            bincode::decode_from_slice(&self.bytes, bincode::config::standard())
+            bincode::decode_from_slice(self.bytes(), bincode::config::standard())
                 .expect("failed to deserialize");
 
         kv_pairs
@@ -190,7 +190,7 @@ impl DivisibleState for StateOrchestrator {
         self.get_descriptor_inner()
     }
 
-    fn accept_parts(&mut self, parts: Box<[Self::StatePart]>) -> atlas_common::error::Result<()> {
+    fn accept_parts(&mut self, parts: Vec<Self::StatePart>) -> atlas_common::error::Result<()> {
         //let mut batch = sled::Batch::default();
         let mut tree_lock = self.mk_tree.write().expect("failed to write");
 
@@ -200,7 +200,7 @@ impl DivisibleState for StateOrchestrator {
             let prefix = part.id();
 
             for (k, v) in pairs.iter() {
-                let (k, v) = ([prefix, k.as_ref()].concat(), v.to_vec());
+                let (k, v) = ([prefix, k.as_ref()].concat(), v.deref());
                 let _ = self.db.0.insert(k.as_slice(), v);
             }
 
@@ -248,7 +248,6 @@ impl DivisibleState for StateOrchestrator {
         pool.scoped(|scope| {
             for chunk in chunks {
                 scope.execute(|| {
-
                     let db_handle = self.db.0.clone();
                     let tree = self.mk_tree.clone();
                     let mut local_state_parts = Vec::new();
