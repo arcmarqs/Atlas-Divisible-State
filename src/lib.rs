@@ -195,21 +195,20 @@ impl DivisibleState for StateOrchestrator {
         let mut tree_lock = self.mk_tree.write().expect("failed to write");
 
         // let mut hasher = Context::new();
-        for part in parts.iter() {
+        for part in parts.into_iter() {
             let pairs = part.to_pairs();
             let prefix = part.id();
 
-            for (k, v) in pairs.iter() {
-                let (k, v) = ([prefix, k.as_ref()].concat(), v.deref());
+            for (k, v) in pairs {
+                let (k, v) = ([prefix, k.as_ref()].concat(), v);
                 let _ = self.db.0.insert(k.as_slice(), v);
             }
 
-            tree_lock.insert_leaf(Prefix::new(prefix), part.leaf.clone());
+            tree_lock.insert_leaf(Prefix::new(prefix), part.leaf);
         }
 
         // println!("DIGEST {:?}", hasher.finish());
 
-        drop(tree_lock);
         //self.db.0.apply_batch(batch).expect("failed to apply batch");
 
         //let _ = self.db.flush();
