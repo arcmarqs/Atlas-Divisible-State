@@ -6,6 +6,7 @@ use std::{
 
 use crate::{state_tree::StateTree, SerializedTree, PREFIX_LEN};
 use atlas_common::{collections::HashSet, ordering::SeqNo};
+use atlas_smr_execution::scalable::CRUDState;
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use sled::{Config, Db, IVec, Mode, Subscriber};
@@ -186,6 +187,45 @@ impl StateOrchestrator {
             digest: lock.root,
             leaves: lock.leaves.values().cloned().collect::<Vec<_>>(),
             seqno: lock.seqno,
+        }
+    }
+}
+
+
+impl CRUDState for StateOrchestrator {
+    fn read(&self, column: &str, key: &[u8]) -> Option<Vec<u8>> {
+        match self.get(key) {
+            Some(vec) => {
+                Some(vec.to_vec())
+            },
+            None => None,
+        }
+    }
+
+    /// Create a new entry in the state
+    fn create(&mut self, _column: &str, key: &[u8], value: &[u8]) -> bool {
+        self.insert(key, value.to_owned()).is_some()
+
+    }
+
+    /// Update an entry in the state
+    /// Returns the previous value that was stored in the state
+    fn update(&mut self, _column: &str, key: &[u8], value: &[u8]) -> Option<Vec<u8>> {
+        match self.insert(key, value.to_owned()) {
+            Some(vec) => {
+                Some(vec.to_vec())
+            },
+            None => None,
+        }
+    }
+
+    /// Delete an entry in the state
+    fn delete(&mut self, _column: &str, key: &[u8]) -> Option<Vec<u8>> {
+        match self.remove(key) {
+            Some(vec) => {
+                Some(vec.to_vec())
+            },
+            None => None,
         }
     }
 }
