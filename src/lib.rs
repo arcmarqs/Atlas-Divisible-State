@@ -271,7 +271,7 @@ impl DivisibleState for StateOrchestrator {
 
 
                     let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(local_state_parts));
-                    println!("SENDING PARTS {:?}", parts.len());
+                    println!("SENDING PARTS");
                     if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
                     }
