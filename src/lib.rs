@@ -310,10 +310,6 @@ impl DivisibleState for StateOrchestrator {
 
         println!("post ST {:?}", self.get_descriptor().get_digest());
 
-        println!("Verifying integrity");
-
-        self.db.0.verify_integrity().expect("integrity check failed");
-
         Ok(())
     }
 }
