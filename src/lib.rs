@@ -214,7 +214,7 @@ impl DivisibleState for StateOrchestrator {
         Ok(())
     }
 
-    fn get_parts(&mut self, pool: &mut Pool, checkpoint_tx: ChannelSyncTx<AppStateMessage<Self>>) -> Result<(), anyhow::Error> {
+    fn get_parts(&mut self, pool: &mut Pool, checkpoint_tx: ChannelSyncTx<AppStateMessage<Self>>) -> Result<(), anyhow::Error> {        
         metric_store_count(CHECKPOINT_SIZE_ID, 0);
         //metric_store_count(TOTAL_STATE_SIZE_ID, 0);
 
@@ -308,11 +308,11 @@ impl DivisibleState for StateOrchestrator {
             .expect("failed to lock tree")
             .calculate_tree();
 
-        //println!("post ST {:?}", self.get_descriptor().get_digest());
+        println!("post ST {:?}", self.get_descriptor().get_digest());
 
-        //println!("Verifying integrity");
+        println!("Verifying integrity");
 
-        //self.db.0.verify_integrity().expect("integrity check failed");
+        self.db.0.verify_integrity().expect("integrity check failed");
 
         Ok(())
     }
