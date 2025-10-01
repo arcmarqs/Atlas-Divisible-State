@@ -240,7 +240,7 @@ impl DivisibleState for StateOrchestrator {
             .map(|chunk| chunk.to_owned())
             .collect::<Vec<_>>();
 
-        let next_seqno = self.mk_tree.read().expect("failed to lock tree").get_seqno()+1.into();
+        let seqno = self.mk_tree.read().expect("failed to lock tree").get_seqno().into();
         pool.scoped(|scope| {
             for chunk in chunks {
                 scope.execute(|| {
@@ -270,7 +270,7 @@ impl DivisibleState for StateOrchestrator {
 
 
                     let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(local_state_parts));
-                    if checkpoint_tx.send_return(AppStateMessage::new(next_seqno,parts)).is_err(){
+                    if checkpoint_tx.send_return(AppStateMessage::new(seqno,parts)).is_err(){
                         error!("Failed to send state parts using checkpoint_tx");
                     }
                 });
