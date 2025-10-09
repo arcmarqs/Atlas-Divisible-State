@@ -236,7 +236,7 @@ impl DivisibleState for StateOrchestrator {
         // println!("prefix count {:?}", self.updates.seqno);
        // println!("updates {:?}", self.updates.len());
 
-        let chunks = split_evenly(&self.updates.extract(), 16)
+        let chunks = split_evenly(&self.updates.extract(), 36)
             .map(|chunk| chunk.to_owned())
             .collect::<Vec<_>>();
 
@@ -274,6 +274,8 @@ impl DivisibleState for StateOrchestrator {
                         error!("Failed to send state parts using checkpoint_tx");
                     }
                 });
+
+                thread::sleep(std::time::Duration::from_millis(1000));
             }
         });
         
