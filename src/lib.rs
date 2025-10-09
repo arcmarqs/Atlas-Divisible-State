@@ -1,6 +1,6 @@
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{mem, thread};
 
 use anyhow::Error;
@@ -31,6 +31,11 @@ pub mod state_tree;
 pub mod metrics;
 
 include!("generated.rs");
+
+// Limits to cap in-memory batching during checkpoint streaming
+// Tune as needed depending on workload and channel capacity
+const MAX_PARTS_PER_MSG: usize = 16; // Max number of parts to include per message
+const MAX_BYTES_PER_MSG: usize = 8 * 1024 * 1024; // ~8 MiB of serialized part bytes per message
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -236,7 +241,7 @@ impl DivisibleState for StateOrchestrator {
         // println!("prefix count {:?}", self.updates.seqno);
        // println!("updates {:?}", self.updates.len());
 
-        let chunks = split_evenly(&self.updates.extract(), 36)
+        let chunks = split_evenly(&self.updates.extract(), 48)
             .map(|chunk| chunk.to_owned())
             .collect::<Vec<_>>();
 
@@ -246,7 +251,11 @@ impl DivisibleState for StateOrchestrator {
                 scope.execute(|| {
                     let db_handle = self.db.0.clone();
                     let tree = self.mk_tree.clone();
+                    // We'll stream parts in bounded batches to avoid peak memory spikes
                     let mut local_state_parts = Vec::new();
+                    let mut batch_bytes: usize = 0;
+                    // Collect leaf updates separately so we can drop part bytes after sending
+                    let mut leaves_to_add: Vec<(Prefix, Arc<LeafNode>)> = Vec::new();
                     for prefix in chunk {
                         let kv_iter = db_handle.scan_prefix(prefix.as_ref());
                         let kv_pairs = kv_iter
@@ -259,23 +268,34 @@ impl DivisibleState for StateOrchestrator {
                         let serialized_part =
                             SerializedState::from_prefix(prefix, kv_pairs.as_ref());
 
+                        // Track leaves to update the tree, but don't retain the full part beyond batching
+                        leaves_to_add.push((Prefix::new(serialized_part.id()), serialized_part.leaf.clone()));
+
+                        batch_bytes = batch_bytes.saturating_add(serialized_part.length());
                         local_state_parts.push(serialized_part);
+
+                        // If batch is large enough, send it downstream and clear memory
+                        if local_state_parts.len() >= MAX_PARTS_PER_MSG || batch_bytes >= MAX_BYTES_PER_MSG {
+                            let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(mem::take(&mut local_state_parts)));
+                            if checkpoint_tx.send_return(AppStateMessage::new(seqno, parts)).is_err() {
+                                error!("Failed to send state parts using checkpoint_tx");
+                            }
+                            batch_bytes = 0;
+                        }
                     }
 
-                    tree.write().expect("failed to write").leaves.extend(
-                        local_state_parts
-                            .iter()
-                            .map(|part| (Prefix::new(part.id()), part.leaf.clone())),
-                    ); 
+                    // Update tree leaves with all parts processed in this chunk
+                    tree.write().expect("failed to write").leaves.extend(leaves_to_add.into_iter());
 
-
-                    let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(local_state_parts));
-                    if checkpoint_tx.send_return(AppStateMessage::new(seqno,parts)).is_err(){
-                        error!("Failed to send state parts using checkpoint_tx");
+                    // Send any remaining parts in the batch
+                    if !local_state_parts.is_empty() {
+                        let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(mem::take(&mut local_state_parts)));
+                        if checkpoint_tx.send_return(AppStateMessage::new(seqno, parts)).is_err(){
+                            error!("Failed to send state parts using checkpoint_tx");
+                        }
                     }
                 });
-
-                thread::sleep(std::time::Duration::from_millis(1000));
+                thread::sleep(Duration::from_millis(500));
             }
         });
         
