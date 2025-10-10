@@ -35,7 +35,7 @@ include!("generated.rs");
 // Limits to cap in-memory batching during checkpoint streaming
 // Tune as needed depending on workload and channel capacity
 const MAX_PARTS_PER_MSG: usize = 32; // Max number of parts to include per message
-const MAX_BYTES_PER_MSG: usize = 16 * 1024 * 1024; // ~16 MiB of serialized part bytes per message
+const MAX_BYTES_PER_MSG: usize = 32 * 1024 * 1024; // ~32 MiB of serialized part bytes per message
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
