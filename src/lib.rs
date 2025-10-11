@@ -43,7 +43,7 @@ fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
         pub n: usize,
     }
     impl<'a, I> Iterator for Iter<'a, I> {
-        type Item = &'a [I];MEM_LIMIT=3G ./run servers
+        type Item = &'a [I];
         fn next(&mut self) -> Option<&'a [I]> {
             if self.slice.len() == 0 {
                 return None;
