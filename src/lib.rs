@@ -252,8 +252,8 @@ impl DivisibleState for StateOrchestrator {
                     let db_handle = self.db.0.clone();
                     let tree = self.mk_tree.clone();
                     // We'll stream parts in bounded batches to avoid peak memory spikes
-                    let mut local_state_parts = Vec::new();
-                    let mut batch_bytes: usize = 0;
+                    // let mut local_state_parts = Vec::new();
+                    // let mut batch_bytes: usize = 0;
                     // Collect leaf updates separately so we can drop part bytes after sending
                     let mut leaves_to_add: Vec<(Prefix, Arc<LeafNode>)> = Vec::new();
                     for prefix in chunk {
@@ -271,30 +271,30 @@ impl DivisibleState for StateOrchestrator {
                         // Track leaves to update the tree, but don't retain the full part beyond batching
                         leaves_to_add.push((Prefix::new(serialized_part.id()), serialized_part.leaf.clone()));
 
-                        batch_bytes = batch_bytes.saturating_add(serialized_part.length());
-                        local_state_parts.push(serialized_part);
+                        // batch_bytes = batch_bytes.saturating_add(serialized_part.length());
+                        // local_state_parts.push(serialized_part);
 
                         // If batch is large enough, send it downstream and clear memory
-                        if local_state_parts.len() >= MAX_PARTS_PER_MSG || batch_bytes >= MAX_BYTES_PER_MSG {
-                            let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(mem::take(&mut local_state_parts)));
+                        // if local_state_parts.len() >= MAX_PARTS_PER_MSG || batch_bytes >= MAX_BYTES_PER_MSG {
+                            let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::One(serialized_part));
                             if checkpoint_tx.send_return(AppStateMessage::new(seqno, parts)).is_err() {
                                 error!("Failed to send state parts using checkpoint_tx");
                             }
-                            batch_bytes = 0;
-                            thread::sleep(Duration::from_millis(100));
-                        }
+                        //     batch_bytes = 0;)
+                        //     thread::sleep(Duration::from_millis(100));
+                        // }
                     }
 
                     // Update tree leaves with all parts processed in this chunk
                     tree.write().expect("failed to write").leaves.extend(leaves_to_add.into_iter());
 
                     // Send any remaining parts in the batch
-                    if !local_state_parts.is_empty() {
-                        let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(mem::take(&mut local_state_parts)));
-                        if checkpoint_tx.send_return(AppStateMessage::new(seqno, parts)).is_err(){
-                            error!("Failed to send state parts using checkpoint_tx");
-                        }
-                    }
+                    // if !local_state_parts.is_empty() {
+                    //     let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(mem::take(&mut local_state_parts)));
+                    //     if checkpoint_tx.send_return(AppStateMessage::new(seqno, parts)).is_err(){
+                    //         error!("Failed to send state parts using checkpoint_tx");
+                    //     }
+                    // }
                 });
                 thread::sleep(Duration::from_millis(250));
             }
