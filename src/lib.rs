@@ -35,7 +35,7 @@ include!("generated.rs");
 // Limits to cap in-memory batching during checkpoint streaming
 // Tune as needed depending on workload and channel capacity
 const MAX_PARTS_PER_MSG: usize = 16; // Max number of parts to include per message
-const MAX_BYTES_PER_MSG: usize = 8 * 1024 * 1024; // ~8  MiB of serialized part bytes per message
+const MAX_BYTES_PER_MSG: usize = 16 * 1024 * 1024; // ~16 MiB of serialized part bytes per message
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -275,7 +275,7 @@ impl DivisibleState for StateOrchestrator {
                         local_state_parts.push(serialized_part);
 
                         // If batch is large enough, send it downstream and clear memory
-                        if local_state_parts.len() >= MAX_PARTS_PER_MSG || batch_bytes >= MAX_BYTES_PER_MSG {
+                        if batch_bytes >= MAX_BYTES_PER_MSG {
                             let parts: AppState<StateOrchestrator> = AppState::StatePart(MaybeVec::Mult(mem::take(&mut local_state_parts)));
                             if checkpoint_tx.send_return(AppStateMessage::new(seqno, parts)).is_err() {
                                 error!("Failed to send state parts using checkpoint_tx");
@@ -295,7 +295,7 @@ impl DivisibleState for StateOrchestrator {
                         }
                     }
                 });
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(1000));
             }
         });
         
