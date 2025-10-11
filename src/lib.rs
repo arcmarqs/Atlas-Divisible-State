@@ -281,6 +281,7 @@ impl DivisibleState for StateOrchestrator {
                                 error!("Failed to send state parts using checkpoint_tx");
                             }
                             batch_bytes = 0;
+                            thread::sleep(Duration::from_millis(100));
                         }
                     }
 
@@ -295,7 +296,7 @@ impl DivisibleState for StateOrchestrator {
                         }
                     }
                 });
-                thread::sleep(Duration::from_millis(1000));
+                thread::sleep(Duration::from_millis(250));
             }
         });
         
