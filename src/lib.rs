@@ -34,8 +34,8 @@ include!("generated.rs");
 
 // Limits to cap in-memory batching during checkpoint streaming
 // Tune as needed depending on workload and channel capacity
-const MAX_PARTS_PER_MSG: usize = 32; // Max number of parts to include per message
-const MAX_BYTES_PER_MSG: usize = 10 * 1024 * 1024; // ~10 MiB of serialized part bytes per message
+const MAX_PARTS_PER_MSG: usize = 24; // Max number of parts to include per message
+const MAX_BYTES_PER_MSG: usize = 8 * 1024 * 1024; // ~8 MiB of serialized part bytes per message
 
 fn split_evenly<T>(slice: &[T], n: usize) -> impl Iterator<Item = &[T]> {
     struct Iter<'a, I> {
@@ -241,7 +241,7 @@ impl DivisibleState for StateOrchestrator {
         // println!("prefix count {:?}", self.updates.seqno);
        // println!("updates {:?}", self.updates.len());
 
-        let chunks = split_evenly(&self.updates.extract(), 32)
+        let chunks = split_evenly(&self.updates.extract(), 36)
             .map(|chunk| chunk.to_owned())
             .collect::<Vec<_>>();
 
